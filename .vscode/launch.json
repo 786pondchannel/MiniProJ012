@@ -14,7 +14,10 @@
       "request": "attach",
       "hostName": "localhost",
       "port": 8000,
-      "projectName": "MiniProJ01"
+      "projectName": "MiniProJ01",
+      "sourcePaths": [
+        "${workspaceFolder}/src/main/java"
+      ]
     },
     {
       "type": "java",
@@ -23,13 +26,16 @@
       "hostName": "localhost",
       "port": 8000,
       "preLaunchTask": "dev: build and up",
-      "projectName": "MiniProJ01"
+      "projectName": "MiniProJ01",
+      "sourcePaths": [
+        "${workspaceFolder}/src/main/java"
+      ]
     },
     {
       "type": "chrome",
       "request": "launch",
       "name": "Launch Chrome against localhost",
-      "url": "http://localhost:8080/shabu",
+      "url": "http://localhost:8080/preorder",
       "webRoot": "${workspaceFolder}"
     }
   ]
