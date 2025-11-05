@@ -1,0 +1,19 @@
+# Maven
+target/
+
+# Java
+*.class
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# IntelliJ / VS Code
+.idea/
+*.iml
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
