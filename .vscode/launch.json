@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "UnicodeConverter",
+      "request": "launch",
+      "mainClass": "com.springmvc.utils.UnicodeConverter",
+      "projectName": "MiniProJ01"
+    },
+    {
+      "type": "java",
+      "name": "Attach to Tomcat (no prelaunch)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 8000,
+      "projectName": "MiniProJ01"
+    },
+    {
+      "type": "java",
+      "name": "Attach to Tomcat in Docker",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 8000,
+      "preLaunchTask": "dev: build and up",
+      "projectName": "MiniProJ01"
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Launch Chrome against localhost",
+      "url": "http://localhost:8080/shabu",
+      "webRoot": "${workspaceFolder}"
+    }
+  ]
+}

@@ -1,3 +1,9 @@
 {
-    "java.compile.nullAnalysis.mode": "automatic"
+  "java.compile.nullAnalysis.mode": "automatic",
+  // show inline values next to code during debug (valid values: "on", "off", "auto")
+  "debug.inlineValues": "on",
+  // evaluate expressions for hover during debugging so runtime values show up
+  "debug.evaluateForHovers": true,
+  // enable editor hover (for mouse-over value/tooltips)
+  "editor.hover.enabled": true
 }

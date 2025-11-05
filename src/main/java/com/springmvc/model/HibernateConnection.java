@@ -18,7 +18,7 @@ public class HibernateConnection {
                 
                 props.put("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver");
                 props.put("hibernate.connection.url",
-                    "jdbc:mysql://localhost:3307/preorder_farm"
+                    "jdbc:mysql://mysql:3306/preorder_farm"
                     + "?useUnicode=true&characterEncoding=UTF-8"
                     + "&serverTimezone=Asia/Bangkok"
                     + "&useSSL=false"
