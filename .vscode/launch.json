@@ -17,7 +17,13 @@
       "projectName": "MiniProJ01",
       "sourcePaths": [
         "${workspaceFolder}/src/main/java"
-      ]
+      ],
+      "stepFilters": {
+        "skipClasses": [
+          "java.lang.ClassLoader"
+        ],
+        "skipSynthetics": false
+      }
     },
     {
       "type": "java",
@@ -29,7 +35,13 @@
       "projectName": "MiniProJ01",
       "sourcePaths": [
         "${workspaceFolder}/src/main/java"
-      ]
+      ],
+      "stepFilters": {
+        "skipClasses": [
+          "java.lang.ClassLoader"
+        ],
+        "skipSynthetics": false
+      }
     },
     {
       "type": "chrome",
