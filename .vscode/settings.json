@@ -1,9 +1,44 @@
 {
   "java.compile.nullAnalysis.mode": "automatic",
-  // show inline values next to code during debug (valid values: "on", "off", "auto")
+  
+  // ===== Debug Settings =====
+  // Show inline values next to code during debug
   "debug.inlineValues": "on",
-  // evaluate expressions for hover during debugging so runtime values show up
+  
+  // Evaluate expressions for hover during debugging so runtime values show up
   "debug.evaluateForHovers": true,
-  // enable editor hover (for mouse-over value/tooltips)
-  "editor.hover.enabled": true
+  
+  // Enable editor hover (for mouse-over value/tooltips)
+  "editor.hover.enabled": true,
+  
+  // Show hover after delay (in milliseconds)
+  "editor.hover.delay": 300,
+  
+  // Keep hover visible when moving mouse
+  "editor.hover.sticky": true,
+  
+  // ===== Java Debug Settings =====
+  // Enable hot code replace for Java debugging
+  "java.debug.settings.hotCodeReplace": "auto",
+  
+  // Show toString() value in variables view
+  "java.debug.settings.showToString": true,
+  
+  // Show static variables in variables view
+  "java.debug.settings.showStaticVariables": true,
+  
+  // Show qualified names in variables view
+  "java.debug.settings.showQualifiedNames": false,
+  
+  // Show logical structure for common types (e.g., List, Map)
+  "java.debug.settings.showLogicalStructure": true,
+  
+  // Show hex values in variables view
+  "java.debug.settings.showHex": false,
+  
+  // Maximum string length to show in variables view (0 = unlimited)
+  "java.debug.settings.maxStringLength": 0,
+  
+  // Enable step filtering
+  "java.debug.settings.enableStepFiltering": false
 }
