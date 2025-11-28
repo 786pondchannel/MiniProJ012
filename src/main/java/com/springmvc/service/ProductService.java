@@ -1,4 +1,3 @@
-// src/main/java/com/springmvc/service/ProductService.java
 package com.springmvc.service;
 
 import com.springmvc.model.HibernateConnection;
@@ -9,17 +8,18 @@ import org.hibernate.Transaction;
 import org.hibernate.query.Query;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigDecimal;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.file.*;
+import java.util.*;
 
 @Service
 public class ProductService {
 
     private final SessionFactory sessionFactory = HibernateConnection.getSessionFactory();
 
-    /* ========================= พื้นฐานเดิม (แก้ getProduct ให้มี fallback) ========================= */
+    /* ========================= พื้นฐานเดิม (คงโครงเดิมไว้) ========================= */
 
     public Product getProduct(String id) {
         if (id == null) return null;
@@ -27,11 +27,11 @@ public class ProductService {
         if (key.isEmpty()) return null;
 
         try (Session s = sessionFactory.openSession()) {
-            // 1) ยิงด้วยคีย์หลักตามที่ entity map ไว้ก่อน (ไวสุด)
+            // by PK
             Product p = s.get(Product.class, key);
             if (p != null) return p;
 
-            // 2) เผื่อ mapping ไม่ได้ชี้ productId เป็น @Id → ค้นด้วย HQL ชี้ชัด productId
+            // by productId field
             try {
                 Query<Product> q1 = s.createQuery(
                         "from Product p where p.productId = :x", Product.class);
@@ -40,7 +40,7 @@ public class ProductService {
                 if (p != null) return p;
             } catch (Exception ignore) {}
 
-            // 3) เผื่อบางข้อมูลใช้ฟิลด์ชื่อ id
+            // เผื่อมี field id ใน model เก่าๆ
             try {
                 Query<Product> q2 = s.createQuery(
                         "from Product p where p.id = :x", Product.class);
@@ -53,7 +53,7 @@ public class ProductService {
     }
 
     public List<Product> getProductsByFarmer(String farmerId) {
-        if (farmerId == null || farmerId.isBlank()) return java.util.List.of();
+        if (farmerId == null || farmerId.isBlank()) return List.of();
         try (Session s = sessionFactory.openSession()) {
             return s.createQuery(
                     "from Product p where p.farmerId = :fid order by p.productId desc",
@@ -78,6 +78,41 @@ public class ProductService {
         }
     }
 
+    /* ========== สร้าง/แก้สินค้า + จัดการไฟล์รูป (ใช้คอลัมน์ img เดิม) ========== */
+
+    /** สร้างสินค้าใหม่ พร้อมอัปโหลดรูป (ถ้ามี) */
+    public void createProductWithImage(Product p, InputStream imageStream, String originalFilename) {
+        if (imageStream != null && originalFilename != null && !originalFilename.isBlank()) {
+            String storedName = saveProductImage(imageStream, originalFilename);
+            p.setImg(storedName);  // เก็บชื่อไฟล์ลง product.img
+        }
+        createProductWithoutImage(p);
+    }
+
+    /** อัปเดตสินค้า และถ้ามีไฟล์ใหม่ ให้แทนที่ (ลบไฟล์เก่าถ้าจำเป็น) */
+    public void updateProductWithImage(Product p, InputStream imageStream, String originalFilename, boolean replaceImage) {
+        try (Session s = sessionFactory.openSession()) {
+            Transaction tx = s.beginTransaction();
+
+            Product existing = s.get(Product.class, p.getProductId());
+            String oldStored = (existing != null) ? safe(existing.getImg()) : null;
+
+            s.merge(p);
+
+            if (imageStream != null && originalFilename != null && !originalFilename.isBlank()) {
+                String newStored = saveProductImage(imageStream, originalFilename);
+                p.setImg(newStored);
+                s.merge(p);
+
+                if (replaceImage && notBlank(oldStored) && !looksLikeUrlPath(oldStored)) {
+                    safeDeleteStoredImage(oldStored);
+                }
+            }
+
+            tx.commit();
+        }
+    }
+
     /* ===================== ค้นหารายการสาธารณะ (Catalog) ===================== */
 
     public List<Product> searchPublicProducts(String kw,
@@ -90,8 +125,8 @@ public class ProductService {
         StringBuilder hql = new StringBuilder("from Product p where 1=1 ");
         Map<String, Object> params = new HashMap<>();
 
-        // แสดงรายการที่พร้อมขาย/พรีออเดอร์ (ปรับตามธุรกิจได้)
-        hql.append(" and (p.status is null or p.status = 'AVAILABLE' or p.status = 'พรีออเดอร์ได้แล้ว' or p.status='พร้อมส่ง') ");
+        // สถานะที่ถือว่า "เปิดขาย/เปิดจอง"
+        hql.append(" and (p.status is null or p.status = 'พรีออเดอร์ได้แล้ว' or p.status = 'พร้อมสั่งซื้อแล้ว') ");
 
         if (notBlank(kw)) {
             hql.append(" and (lower(p.productname) like :kw or lower(p.description) like :kw) ");
@@ -110,7 +145,7 @@ public class ProductService {
             params.put("pmax", maxPrice);
         }
 
-        switch (safe(sort)) {
+        switch (safe(sort).toLowerCase()) {
             case "price-asc"  -> hql.append(" order by p.price asc, p.productname asc ");
             case "price-desc" -> hql.append(" order by p.price desc, p.productname asc ");
             case "name-asc"   -> hql.append(" order by p.productname asc ");
@@ -137,7 +172,7 @@ public class ProductService {
         StringBuilder hql = new StringBuilder("select count(p.productId) from Product p where 1=1 ");
         Map<String, Object> params = new HashMap<>();
 
-        hql.append(" and (p.status is null or p.status = 'AVAILABLE' or p.status='พรีออเดอร์ได้แล้ว' or p.status='พร้อมส่ง') ");
+        hql.append(" and (p.status is null or p.status = 'พรีออเดอร์ได้แล้ว' or p.status = 'พร้อมสั่งซื้อแล้ว') ");
 
         if (notBlank(kw)) {
             hql.append(" and (lower(p.productname) like :kw or lower(p.description) like :kw) ");
@@ -165,92 +200,100 @@ public class ProductService {
     }
 
     /**
-     * หา cover image ของสินค้า:
-     * 1) ถ้ามี p.img ใช้เลย
-     * 2) ถ้าไม่มีก็อ่านจาก product_image (รองรับชื่อคอลัมน์หลายแบบ)
+     * หา cover:
+     * - ถ้า product.img มีค่า → แปลงเป็น URL
+     * - ถ้าไม่มี → ใช้ตัวแรกจาก product_image.imageUrl
      */
     public String findCoverImagePath(String productId) {
         if (!notBlank(productId)) return null;
         try (Session s = sessionFactory.openSession()) {
             Product p = s.get(Product.class, productId);
-            if (p != null && notBlank(p.getImg())) return p.getImg();
-
+            if (p != null && notBlank(p.getImg())) {
+                return toPublicUrl(p.getImg());
+            }
             try {
                 String cover = s.createNativeQuery(
                         "select MIN(imageUrl) from product_image where productId = :pid", String.class)
                         .setParameter("pid", productId)
                         .uniqueResult();
-                if (notBlank(cover)) return cover;
+                if (notBlank(cover)) return toPublicUrl(cover);
             } catch (Exception ignore) {}
-
-            try {
-                String cover2 = s.createNativeQuery(
-                        "select MIN(image_path) from product_image where product_id = :pid", String.class)
-                        .setParameter("pid", productId)
-                        .uniqueResult();
-                if (notBlank(cover2)) return cover2;
-            } catch (Exception ignore) {}
-
             return null;
-        }
-    }
-
-    /* ====================== สำหรับหน้า “สินค้าของฉัน” ====================== */
-
-    public List<Product> listMyProducts(String farmerId,
-                                        String kw,
-                                        String categoryId,
-                                        BigDecimal minPrice,
-                                        BigDecimal maxPrice,
-                                        String sort,
-                                        Integer page,
-                                        Integer size) {
-
-        if (!notBlank(farmerId)) return java.util.List.of();
-
-        StringBuilder hql = new StringBuilder("from Product p where p.farmerId = :fid ");
-        Map<String, Object> params = new HashMap<>();
-        params.put("fid", farmerId);
-
-        if (notBlank(kw)) {
-            hql.append(" and (lower(p.productname) like :kw or lower(p.description) like :kw) ");
-            params.put("kw", "%" + kw.trim().toLowerCase() + "%");
-        }
-        if (notBlank(categoryId)) {
-            hql.append(" and p.categoryId = :cid ");
-            params.put("cid", categoryId.trim());
-        }
-        if (minPrice != null) {
-            hql.append(" and p.price >= :pmin ");
-            params.put("pmin", minPrice);
-        }
-        if (maxPrice != null) {
-            hql.append(" and p.price <= :pmax ");
-            params.put("pmax", maxPrice);
-        }
-
-        switch (safe(sort)) {
-            case "price_asc"  -> hql.append(" order by p.price asc, p.productname asc ");
-            case "price_desc" -> hql.append(" order by p.price desc, p.productname asc ");
-            case "name_asc"   -> hql.append(" order by p.productname asc ");
-            case "name_desc"  -> hql.append(" order by p.productname desc ");
-            default           -> hql.append(" order by p.productId desc ");
-        }
-
-        int pg = (page == null || page < 1) ? 1 : page;
-        int sz = (size == null || size < 1) ? 24 : Math.min(size, 200);
-
-        try (Session s = sessionFactory.openSession()) {
-            Query<Product> q = s.createQuery(hql.toString(), Product.class);
-            for (Map.Entry<String, Object> e : params.entrySet()) q.setParameter(e.getKey(), e.getValue());
-            q.setFirstResult((pg - 1) * sz);
-            q.setMaxResults(sz);
-            return q.list();
         }
     }
 
     /* ============================== Utils ============================== */
 
-    private static String safe(String s) { return (s == null) ? "" : s.trim().toLowerCase(); }
+    private static String safe(String s) { return (s == null) ? "" : s.trim(); }
     private static boolean notBlank(String s){ return s != null && !s.trim().isEmpty(); }
+
+    /* ========================== อัปโหลดรูป (ไม่เพิ่มไฟล์ใหม่) ========================== */
+
+    /** root เก็บไฟล์อัปโหลด: ใน Docker = /app/uploads (แมปกับ ./uploads) */
+    private Path uploadRoot() {
+        String root = System.getenv("UPLOAD_DIR");
+        if (root == null || root.isBlank()) root = "/app/uploads";
+        return Paths.get(root).toAbsolutePath().normalize();
+    }
+
+    /** โฟลเดอร์สำหรับรูปสินค้า */
+    private Path productUploadDir() {
+        Path dir = uploadRoot().resolve("products");
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot create upload dir: " + dir, e);
+        }
+        return dir;
+    }
+
+    /** บันทึกรูปลงดิสก์และคืน “ชื่อไฟล์ที่เก็บจริง” (เก็บลง product.img) */
+    private String saveProductImage(InputStream in, String originalFilename) {
+        try {
+            String ext = getExtensionSafe(originalFilename);
+            String newName = UUID.randomUUID().toString() + (ext.isEmpty() ? "" : "." + ext);
+
+            Path dir = productUploadDir();
+            Path target = dir.resolve(newName).normalize();
+            if (!target.startsWith(dir)) throw new IllegalArgumentException("Invalid file path");
+
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+            return newName;
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot store file", e);
+        }
+    }
+
+    /** ลบไฟล์เก่าแบบปลอดภัย (รับเป็นชื่อไฟล์ที่เราเคยเซฟเอง) */
+    private void safeDeleteStoredImage(String storedName) {
+        try {
+            Path dir = productUploadDir();
+            Path target = dir.resolve(storedName).normalize();
+            if (target.startsWith(dir) && Files.exists(target)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (Exception ignored) {}
+    }
+
+    /** ตีความนามสกุลแบบปลอดภัย */
+    private static String getExtensionSafe(String name) {
+        if (name == null) return "";
+        int dot = name.lastIndexOf('.');
+        if (dot < 0 || dot == name.length() - 1) return "";
+        String ext = name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        return ext.replaceAll("[^a-z0-9]+", "");
+        }
+
+    /** true ถ้า value ดูเป็น path/URL อยู่แล้ว (ขึ้นต้น /, http://, https://) */
+    private static boolean looksLikeUrlPath(String s) {
+        String x = safe(s).toLowerCase(Locale.ROOT);
+        return x.startsWith("/") || x.startsWith("http://") || x.startsWith("https://");
+    }
+
+    /** แปลงค่าที่เก็บใน DB ให้เป็น URL ที่เสิร์ฟได้จริง */
+    private static String toPublicUrl(String stored) {
+        if (!notBlank(stored)) return null;
+        if (looksLikeUrlPath(stored)) return stored;
+        return "/uploads/products/" + stored.trim();
+    }
 }

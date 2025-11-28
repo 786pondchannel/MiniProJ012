@@ -11,7 +11,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700;800&display=swap"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
   <style>
     :root{ --ink:#0f172a; --muted:#6b7280; --border:#e5e7eb; --emerald:#10b981; --emerald-600:#059669; }
     *{ font-family:'Prompt',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif }
@@ -22,21 +21,15 @@
     .btn-primary{ background:linear-gradient(135deg,var(--emerald),var(--emerald-600)); color:#fff }
     .btn-primary:hover{ filter:brightness(1.05) }
     .hint{ font-size:.8rem; color:var(--muted) }
-
-    /* ===== Header/Navigation มาตรฐาน ===== */
     .header{ background:#000; position:sticky; top:0; z-index:50 }
     .nav-a{ color:#fff; opacity:.92; white-space:nowrap }
     .nav-a:hover{ opacity:1; text-decoration:underline }
     .nav-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch }
     .nav-scroll::-webkit-scrollbar{ display:none }
     .badge{ min-width:18px;height:18px;padding:0 6px;font-size:.7rem;border-radius:9999px;background:#10b981;color:#fff;display:inline-flex;align-items:center;justify-content:center;transform:translate(-2px,-6px) }
-
-    /* ===== Footer มาตรฐาน (Dark) ===== */
     .footer-dark{ background:#000; color:#e5e7eb }
     .footer-dark a{ color:#e5e7eb }
     .footer-dark a:hover{ color:#a7f3d0 }
-
-    /* datalist */
     input[list]{ appearance:none; -webkit-appearance:none; background-image:none!important }
     input[list]::-webkit-calendar-picker-indicator{ display:none!important; opacity:0!important }
   </style>
@@ -46,10 +39,9 @@
 <c:set var="m"   value="${member}" />
 <c:set var="cartCount" value="${empty sessionScope.cartCount ? 0 : sessionScope.cartCount}" />
 
-<!-- ================= Header มาตรฐาน ================= -->
+<!-- ================= Header ================= -->
 <header class="header text-white shadow-md">
   <div class="max-w-7xl mx-auto px-6 py-3 grid grid-cols-[auto_1fr_auto] items-center gap-3">
-    <!-- โลโก้ + เมนูหลัก -->
     <div class="flex items-center gap-3">
       <a href="${ctx}/main" class="flex items-center gap-3">
         <img src="https://cdn-icons-png.flaticon.com/512/2909/2909763.png" class="h-8 w-8" alt="logo"/>
@@ -77,7 +69,6 @@
       </nav>
     </div>
 
-    <!-- ค้นหา -->
     <form method="get" action="${ctx}/catalog/list" class="hidden sm:block w-full max-w-2xl mx-4">
       <div class="relative">
         <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-white/70"></i>
@@ -86,7 +77,6 @@
       </div>
     </form>
 
-    <!-- โปรไฟล์ -->
     <div class="justify-self-end">
       <c:choose>
         <c:when test="${not empty sessionScope.loggedInUser}">
@@ -144,21 +134,21 @@
 <main class="max-w-4xl mx-auto px-4 py-8">
   <div class="card p-6 md:p-8">
     <form id="profileForm" action="${ctx}/profile/edit" method="post" enctype="multipart/form-data">
-
       <!-- Avatar -->
       <div class="flex flex-col items-center">
         <div class="w-28 h-28 rounded-full overflow-hidden border">
+          <c:set var="raw" value="${m.imageUrl}" />
+          <c:set var="avatar" value="" />
           <c:choose>
-            <c:when test="${not empty m.imageUrl}">
-              <img id="avatarImg" src="${ctx}${m.imageUrl}" class="w-full h-full object-cover" alt="avatar">
-            </c:when>
-            <c:otherwise>
-              <img id="avatarImg" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=60" class="w-full h-full object-cover" alt="avatar">
-            </c:otherwise>
+            <c:when test="${not empty raw and fn:startsWith(raw,'http')}"><c:set var="avatar" value="${raw}" /></c:when>
+            <c:when test="${not empty raw and fn:startsWith(raw,'/')}"><c:set var="avatar" value="${ctx}${raw}" /></c:when>
+            <c:when test="${not empty raw}"><c:set var="avatar" value="${ctx}/${raw}" /></c:when>
+            <c:otherwise><c:set var="avatar" value="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=60" /></c:otherwise>
           </c:choose>
+          <img id="avatarImg" src="${avatar}?t=${now.time}" class="w-full h-full object-cover" alt="avatar">
         </div>
 
-        <div class="mt-3 text-sm text-gray-600">อัปโหลดรูปภาพโปรไฟล์</div>
+        <div class="mt-3 text-sm text-gray-600">อัปโหลดรูปภาพโปรไฟล์ (.JPG .PNG .WEBP ≤ 5MB)</div>
         <div class="mt-2 flex items-center gap-3">
           <label for="imageFile" class="inline-flex items-center gap-2 px-3 py-1.5 rounded border cursor-pointer bg-gray-50 hover:bg-gray-100">
             <i class="fa-solid fa-upload"></i><span>เลือกไฟล์</span>
@@ -210,8 +200,6 @@
           </div>
         </div>
 
-       
-
         <div>
           <label class="block text-sm mb-1">เบอร์โทรศัพท์</label>
           <input name="phoneNumber" type="text" class="input" value="${m.phoneNumber}" placeholder="เช่น 08x-xxx-xxxx">
@@ -237,7 +225,7 @@
   </div>
 </main>
 
-<!-- ================= Footer มาตรฐาน ================= -->
+<!-- ================= Footer ================= -->
 <footer class="footer-dark mt-10">
   <div class="max-w-7xl mx-auto px-6 py-10 grid md:grid-cols-3 gap-6 text-sm">
     <div>
@@ -263,14 +251,14 @@
   </div>
 </footer>
 
-<!-- ปุ่มลอย เช็คบัญชีคนโกง -->
+<!-- ปุ่มลอย -->
 <a class="fixed right-4 bottom-4 rounded-full bg-emerald-600 hover:bg-emerald-700 px-4 py-3 inline-flex items-center gap-2 text-white shadow-lg z-50"
    href="https://www.blacklistseller.com/report/report_preview/447043" target="_blank" rel="noopener">
   <i class="fa-solid fa-shield-halved"></i> เช็คบัญชีคนโกง
 </a>
 
 <script>
-  // ===== สคริปต์เมนูโปรไฟล์ (มาตรฐาน) =====
+  // ===== โปรไฟล์ดรอปดาวน์ =====
   function toggleProfileMenu(e){
     e && e.stopPropagation();
     const m = document.getElementById('profileMenu');
@@ -309,7 +297,7 @@
   const districtEl = document.getElementById('district');
   const zipcodeEl  = document.getElementById('zipcode');
 
-  // split fullname -> first/last
+  // split fullname -> first/last (เพื่อ UX อย่างเดียว)
   (function(){
     var full = (fullnameH?.value || '').trim().replace(/\s+/g,' ');
     if(!full){ firstName.value=''; lastName.value=''; return; }
@@ -318,11 +306,16 @@
     else { lastName.value = parts.pop(); firstName.value = parts.join(' '); }
   })();
 
-  // preview avatar
+  // preview + ตรวจไฟล์เบื้องต้นฝั่งหน้าเว็บ
   imageInput?.addEventListener('change', function(){
     const f = imageInput.files?.[0];
     fileName.textContent = f ? (f.name || 'ไฟล์ที่เลือก') : 'ไม่มีไฟล์ที่เลือก';
-    if(f){ const url = URL.createObjectURL(f); avatarImg.src = url; setTimeout(()=>URL.revokeObjectURL(url), 1500); }
+    if(!f) return;
+    const okType = ['image/jpeg','image/png','image/webp'].includes(f.type);
+    const okSize = f.size <= 5*1024*1024;
+    if(!okType){ alert('อัปโหลดได้เฉพาะไฟล์ .jpg .png .webp'); imageInput.value=''; return; }
+    if(!okSize){ alert('ไฟล์รูปต้องไม่เกิน 5MB'); imageInput.value=''; return; }
+    const url = URL.createObjectURL(f); avatarImg.src = url; setTimeout(()=>URL.revokeObjectURL(url), 1500);
   });
 
   // email ok icon
@@ -330,7 +323,7 @@
   function toggleOkEmail(){ okEmail?.classList.toggle('hidden', !validEmail(emailInput.value)); }
   emailInput?.addEventListener('input', toggleOkEmail); toggleOkEmail();
 
-  // merge fullname on submit
+  // รวม first+last -> fullname ก่อน submit
   document.getElementById('profileForm').addEventListener('submit', function(){
     const fn = (firstName.value || '').trim();
     const ln = (lastName.value || '').trim();
@@ -360,9 +353,9 @@
 
   function smartParseThaiAddress(s){
     if(!s) return;
-    const zip = s.match(/(\d{5})(?!\d)/); if(zip) zipcodeEl.value = zip[1];
+    const zip = s.match(/(\d{5})(?!\d)/); if(zip && zipcodeEl) zipcodeEl.value = zip[1];
     const m   = s.match(/(?:อ\.|อำเภอ|เขต)\s*([ก-๙A-Za-z]+?)(?:\s|,|$)/);
-    if(m && m[1]) districtEl.value = m[1].trim();
+    if(m && m[1] && districtEl) districtEl.value = m[1].trim();
   }
 </script>
 </body>

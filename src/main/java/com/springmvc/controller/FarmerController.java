@@ -10,11 +10,19 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 
+/**
+ * หน้าโปรไฟล์ร้าน (public view) + เพิ่มรีวิวอย่างง่าย
+ * ไม่มีส่วนใดพาไป /preorder/product/edit/... เช่นกัน
+ */
 @Controller
 @RequestMapping("/farmer")
 public class FarmerController {
@@ -22,25 +30,26 @@ public class FarmerController {
     @Autowired
     private FarmerService farmerService;
 
-    /** หน้าโปรไฟล์ร้าน */
+    /** หน้าโปรไฟล์ร้าน (public view) */
     @GetMapping("/profile")
     public String profile(@RequestParam(value = "farmerId", required = false) String farmerId,
                           HttpSession session, Model model) {
 
-        // 1) ถ้าไม่ส่งมา ลองจาก session.farmerId
-        if (farmerId == null || farmerId.isBlank()) {
+        // 1) จากพารามิเตอร์, 2) จาก session.farmerId, 3) จาก loggedInUser (ถ้าเป็น FARMER)
+        if (!StringUtils.hasText(farmerId)) {
             Object sFarmerId = session.getAttribute("farmerId");
-            if (sFarmerId instanceof String s && !s.isBlank()) farmerId = s;
+            if (sFarmerId instanceof String s && StringUtils.hasText(s)) {
+                farmerId = s;
+            }
         }
-        // 2) ถ้ายังว่าง ลอง resolve จาก user ที่เป็น FARMER
-        if (farmerId == null || farmerId.isBlank()) {
+        if (!StringUtils.hasText(farmerId)) {
             Member logged = (Member) session.getAttribute("loggedInUser");
             if (logged != null && "FARMER".equalsIgnoreCase(logged.getStatus())) {
                 farmerId = farmerService.resolveFarmerIdFromMember(logged);
             }
         }
 
-        if (farmerId == null || farmerId.isBlank()) {
+        if (!StringUtils.hasText(farmerId)) {
             model.addAttribute("error", "✖ ไม่พบรหัสฟาร์ม (เติม ?farmerId=... หรือเข้าสู่ระบบเป็นเกษตรกร)");
             session.setAttribute("cartCount", farmerService.computeCartCount(session.getAttribute("CART")));
             return "FarmerProfile";
@@ -75,7 +84,7 @@ public class FarmerController {
         return "FarmerProfile";
     }
 
-    /** POST เพิ่มรีวิวจริง (ในอนาคตผูกกับฟอร์ม) */
+    /** POST เพิ่มรีวิวจริง (อย่างง่าย) */
     @PostMapping("/review/add")
     public String addReview(@RequestParam String farmerId,
                             @RequestParam(required=false) String productId,
@@ -94,7 +103,7 @@ public class FarmerController {
         return "redirect:/farmer/profile?farmerId=" + farmerId;
     }
 
-    /** GET สร้างรีวิวตัวอย่างเร็วๆ เพื่อทดสอบให้เห็นผลทันที */
+    /** GET สร้างรีวิวตัวอย่างเร็วๆ เพื่อทดสอบ */
     @GetMapping("/review/quickAdd")
     public String quickAdd(@RequestParam String farmerId,
                            HttpSession session, RedirectAttributes ra) {

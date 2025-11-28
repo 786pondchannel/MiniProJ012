@@ -167,4 +167,6 @@ public class ProductController {
         String t = s.trim();
         return t.length() <= max ? t : t.substring(0, max);
     }
+   
+
 }

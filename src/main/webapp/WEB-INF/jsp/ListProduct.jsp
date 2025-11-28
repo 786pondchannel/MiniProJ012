@@ -113,7 +113,8 @@
         </nav>
       </div>
 
-      <form method="get" action="${ctx}/catalog/list" class="justify-self-center lg:justify-self-start w-full max-w-2xl mx-4 hidden sm:block">
+      <!-- IMPORTANT: ค้นหาบนหน้านี้ให้ชี้ /preorder/catalog/list -->
+      <form method="get" action="${ctx}/preorder/catalog/list" class="justify-self-center lg:justify-self-start w-full max-w-2xl mx-4 hidden sm:block">
         <input type="hidden" name="categoryId" value="${categoryId}"/>
         <input type="hidden" name="min" value="${min}"/>
         <input type="hidden" name="max" value="${max}"/>
@@ -264,9 +265,35 @@
                 <c:set var="price" value="${empty p.price ? 0 : p.price}"/>
                 <c:set var="status" value="${p.status}"/>
                 <c:set var="stockNum" value="${empty p.stock ? 0 : p.stock}"/>
-                <c:set var="rawImg" value="${p.img}"/>
 
-                <!-- ชื่อหมวดหมู่ -->
+                <%-- เลือกรูปจากหลายฟิลด์: img, imageUrl, imageURL, image, imagePath --%>
+                <c:set var="rawImg0" value="${p.img}" />
+                <c:if test="${empty rawImg0}"><c:set var="rawImg0" value="${p.imageUrl}" /></c:if>
+                <c:if test="${empty rawImg0}"><c:set var="rawImg0" value="${p.imageURL}" /></c:if>
+                <c:if test="${empty rawImg0}"><c:set var="rawImg0" value="${p.image}" /></c:if>
+                <c:if test="${empty rawImg0}"><c:set var="rawImg0" value="${p.imagePath}" /></c:if>
+
+                <%-- เดา URL เบื้องต้นฝั่งเซิร์ฟเวอร์ เพื่อช่วยให้โหลดติดในทีแรก --%>
+                <c:set var="rawNorm" value="${fn:replace(empty rawImg0 ? '' : rawImg0, '\\\\', '/')}" />
+                <c:set var="imgGuess" value="" />
+                <c:choose>
+                  <c:when test="${not empty rawNorm and fn:startsWith(rawNorm,'http')}">
+                    <c:set var="imgGuess" value="${rawNorm}" />
+                  </c:when>
+                  <c:when test="${not empty rawNorm and fn:startsWith(rawNorm,'/uploads/')}">
+                    <c:set var="imgGuess" value="${ctx}${rawNorm}" />
+                  </c:when>
+                  <c:when test="${not empty rawNorm and fn:startsWith(rawNorm,'uploads/')}">
+                    <c:set var="imgGuess" value="${ctx}/${rawNorm}" />
+                  </c:when>
+                  <c:when test="${not empty rawNorm and fn:contains(rawNorm,'/uploads/')}">
+                    <c:set var="iUp" value="${fn:indexOf(rawNorm,'/uploads/')}" />
+                    <c:set var="pathAfter" value="${fn:substring(rawNorm, iUp, fn:length(rawNorm))}" />
+                    <c:set var="imgGuess" value="${ctx}${pathAfter}" />
+                  </c:when>
+                </c:choose>
+
+                <%-- ชื่อหมวดหมู่ --%>
                 <c:set var="catName" value="${p.categoryId}"/>
                 <c:forEach var="cat" items="${categories}">
                   <c:if test="${cat.categoryId == p.categoryId}">
@@ -274,12 +301,12 @@
                   </c:if>
                 </c:forEach>
 
-                <!-- อนุญาตซื้อ -->
+                <%-- อนุญาตซื้อ --%>
                 <c:set var="okStatus" value="${status eq 'พรีออเดอร์ได้แล้ว' or status eq 'พร้อมสั่งซื้อแล้ว' or status eq 'พร้อมส่ง'}"/>
                 <c:set var="denyStatus" value="${status eq 'กำลังผลิต' or status eq 'ปิดรับจอง'}"/>
                 <c:set var="allowBuy" value="${okStatus and (not denyStatus) and (stockNum gt 0)}"/>
 
-                <!-- สีชิป -->
+                <%-- สีชิป --%>
                 <c:set var="chipClass" value="chip-gray"/>
                 <c:choose>
                   <c:when test="${status eq 'พรีออเดอร์ได้แล้ว'}"><c:set var="chipClass" value="chip-emerald"/></c:when>
@@ -288,7 +315,7 @@
                   <c:when test="${status eq 'กำลังผลิต'}"><c:set var="chipClass" value="chip-gray"/></c:when>
                 </c:choose>
 
-                <!-- การ์ดสินค้า (ใส่ data-* สำหรับ sort ฝั่ง client) -->
+                <!-- การ์ดสินค้า -->
                 <div class="card p-3 product-card"
                      data-status="${fn:escapeXml(status)}"
                      data-price="${price}"
@@ -298,10 +325,12 @@
                   <div class="imgwrap">
                     <a href="${ctx}/catalog/view/${pid}" class="block" aria-label="ดูสินค้า: ${fn:escapeXml(pname)}">
                       <img class="prod-img"
-                           data-raw="${fn:escapeXml(rawImg)}"
+                           data-raw="${fn:escapeXml(rawImg0)}"
+                           data-guess="${fn:escapeXml(imgGuess)}"
                            src="https://via.placeholder.com/600x400?text=No+Image"
                            alt="${fn:escapeXml(pname)}"
                            loading="lazy"
+                           referrerpolicy="no-referrer"
                            onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=No+Image'"/>
                     </a>
                     <c:if test="${not empty status}">
@@ -408,8 +437,8 @@
     <i class="fa-solid fa-shield-halved"></i> เช็คบัญชีคนโกง
   </a>
 
-  <!-- Hidden filter form (ใช้รักษา state/URL) -->
-  <form id="flt" method="get" action="${ctx}/catalog/list" class="hidden">
+  <!-- Hidden filter form (ใช้รักษา state/URL) — ชี้กลับมาหน้านี้ -->
+  <form id="flt" method="get" action="${ctx}/preorder/catalog/list" class="hidden">
     <input type="hidden" name="kw" value="${kw}">
     <input type="hidden" name="categoryId" value="${categoryId}">
     <input type="hidden" name="min" value="${min}">
@@ -477,7 +506,6 @@
           card.style.display = show ? '' : 'none';
           if(show) anyShow=true;
         });
-        // ถ้าทั้งหมดถูกซ่อน เติมข้อความเล็ก ๆ
         let emptyMsg = document.getElementById('emptyLocalFilter');
         if(!anyShow){
           if(!emptyMsg){
@@ -518,41 +546,70 @@
       });
     })();
 
-    /* ===== ซ่อม URL รูปภาพอัตโนมัติ ===== */
+    /* ===== ซ่อม URL รูปภาพอัตโนมัติ (เวอร์ชัน robust เฉพาะหน้านี้) ===== */
     (function fixProductImages(){
-      const ctx = '${ctx}';
-      const ts = '${now.time}';
+      const ctx = '${ctx}';              // context root ของแอป
+      const ts  = '${now.time}';         // กัน cache
       const imgs = document.querySelectorAll('img.prod-img');
 
       imgs.forEach(img=>{
-        const raw0 = (img.getAttribute('data-raw') || '').trim();
-        if(!raw0) return;
+        const clean = s => (s||'').trim().replace(/^['"]|['"]$/g,'').replace(/\\/g,'/');
+        let raw   = clean(img.getAttribute('data-raw'));
+        let guess = clean(img.getAttribute('data-guess'));
 
-        const raw = raw0.replace(/\\/g,'/');
+        if(!raw && !guess) return;
+
+        if(/^data:image\//i.test(raw)){ img.src = raw; return; }
+        if(/^data:image\//i.test(guess)){ img.src = guess; return; }
+
+        const toUploads = s => {
+          const f = clean(s).split('/').pop();
+          return f ? (ctx + '/uploads/' + f) : '';
+        };
+
         const cand = [];
+        if(guess) cand.push(guess);
 
         if(/^https?:\/\//i.test(raw)) cand.push(raw);
         if(/^\/uploads\//i.test(raw)) cand.push(ctx + raw);
-        if(/^uploads\//i.test(raw)) cand.push(ctx + '/' + raw);
+        if(/^uploads\//i.test(raw))   cand.push(ctx + '/' + raw);
 
         const iUp = raw.toLowerCase().indexOf('/uploads/');
         if(iUp >= 0) cand.push(ctx + raw.slice(iUp));
 
-        if(/^[a-z]:\//i.test(raw)){ // Windows absolute -> ใช้ชื่อไฟล์ท้ายสุด
-          const file = raw.split('/').pop();
-          if(file) cand.push(ctx + '/uploads/' + file);
-        } else {
-          const last = raw.split('/').pop();
-          if(last) cand.push(ctx + '/uploads/' + last);
+        if(/^file:\/\//i.test(raw)) cand.push(toUploads(raw));
+        if(/^[a-z]:\//i.test(raw))  cand.push(toUploads(raw));
+        if(!/^https?:\/\//i.test(raw)
+          && !/^\/uploads\//i.test(raw)
+          && !/^uploads\//i.test(raw)) {
+          cand.push(toUploads(raw));
         }
+
+        if(guess && !/^https?:\/\//i.test(guess) && !/^\/uploads\//i.test(guess))
+          cand.push(toUploads(guess));
+
+        const seen = new Set();
+        const list = cand.filter(u=>{
+          if(!u) return false;
+          const k = u.toLowerCase();
+          if(seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
 
         tryLoad(0);
         function tryLoad(i){
-          if(i >= cand.length){ img.src='https://via.placeholder.com/600x400?text=No+Image'; return; }
-          const url = cand[i] + (cand[i].includes('?')?'&':'?') + 't=' + ts;
+          if(i >= list.length){
+            img.src='https://via.placeholder.com/600x400?text=No+Image';
+            return;
+          }
+          const base = list[i];
+          const url  = base + (base.includes('?')?'&':'?') + 't=' + ts;
+
           const probe = new Image();
           probe.onload  = ()=>{ img.src = url; };
           probe.onerror = ()=> tryLoad(i+1);
+          probe.referrerPolicy = 'no-referrer';
           probe.src = url;
         }
       });
@@ -563,10 +620,9 @@
       const grid = document.getElementById('grid');
       if(!grid) return;
       const items = Array.from(grid.children);
-      // เก็บตำแหน่งเดิมไว้เพื่อ 'latest'
       items.forEach((el,idx)=>{ if(!el.dataset.orig) el.dataset.orig = String(idx); });
 
-      let coll = items.filter(el => el.style.display !== 'none'); // เฉพาะที่ยังโชว์หลังกรองสถานะ
+      let coll = items.filter(el => el.style.display !== 'none');
       let hidden = items.filter(el => el.style.display === 'none');
 
       const parseNum = v => {
@@ -591,25 +647,20 @@
           return c === 0 ? (parseInt(A.dataset.order||'0') - parseInt(B.dataset.order||'0')) : c;
         });
       }else{
-        // latest = ตามลำดับเดิมที่เซิร์ฟเวอร์ส่งมา
         coll.sort((A,B)=> parseInt(A.dataset.orig||'0') - parseInt(B.dataset.orig||'0'));
       }
 
-      // นำของที่แสดงมาก่อน แล้วตามด้วยที่ถูกซ่อน เพื่อคง DOM ครบ
       const frag = document.createDocumentFragment();
       coll.concat(hidden).forEach(el=>frag.appendChild(el));
       grid.appendChild(frag);
 
-      // sync state
       setHidden('sort', key);
       if(!isInit){ updateUrlParams({sort:key, page:1}); }
     }
 
-    // hook select
     (function initSort(){
       const sel = document.getElementById('sortSel');
       if(!sel) return;
-      // เรียงครั้งแรกตามพารามิเตอร์ที่เข้ามา
       sortGrid(sel.value || 'latest', true);
       sel.addEventListener('change', ()=> sortGrid(sel.value, false));
     })();

@@ -1,15 +1,29 @@
 package com.springmvc.model;
 
+import jakarta.persistence.*;
 import java.sql.Timestamp;
 
-/** DTO ธรรมดา ใช้สำหรับแสดงผลรูป ไม่ผูกกับ Hibernate ก็ได้ */
+@Entity(name = "ProductImage")
+@Table(name = "product_image")
 public class ProductImage {
+
+    @Id
+    @Column(name = "imageId", length = 36, nullable = false)
     private String imageId;
+
+    @Column(name = "productId", length = 36, nullable = false)
     private String productId;
+
+    @Column(name = "imageUrl", length = 255, nullable = false)
     private String imageUrl;
-    private Integer sortOrder;
+
+    @Column(name = "sortOrder", nullable = false)
+    private Integer sortOrder = 0;
+
+    @Column(name = "createdAt")
     private Timestamp createdAt;
 
+    // ====== getters/setters ======
     public String getImageId() { return imageId; }
     public void setImageId(String imageId) { this.imageId = imageId; }
 

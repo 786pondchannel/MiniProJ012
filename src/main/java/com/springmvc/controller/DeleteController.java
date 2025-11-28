@@ -17,7 +17,7 @@ public class DeleteController {
     @Autowired
     private DeleteProductService deleteProductService;
 
-    /** POST: ลบสินค้า (ห้ามลบถ้ามีออเดอร์ผูก) */
+    
     @PostMapping("/delete/{id}")
     public String delete(@PathVariable("id") String productId,
                          RedirectAttributes ra) {

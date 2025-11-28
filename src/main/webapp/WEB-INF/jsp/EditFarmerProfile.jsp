@@ -198,8 +198,19 @@
               </c:if>
               <c:url value="${profileImgSrc}" var="profileImgSrc"/>
             </c:if>
-            <img id="farmImg" src="${profileImgSrc}" class="w-full h-full object-cover"
-                 onerror="this.src='https://via.placeholder.com/320x320?text=No+Image';" alt="farm">
+
+            <%-- cache-busting เฉพาะกรณีใช้รูปจริงจากระบบ (ไม่ใช่ placeholder) --%>
+            <c:set var="isProfilePlaceholder" value="${empty f.imageF}" />
+            <c:choose>
+              <c:when test="${isProfilePlaceholder}">
+                <img id="farmImg" src="${profileImgSrc}" class="w-full h-full object-cover"
+                     onerror="this.src='https://via.placeholder.com/320x320?text=No+Image';" alt="farm">
+              </c:when>
+              <c:otherwise>
+                <img id="farmImg" src="${profileImgSrc}?v=${now.time}" class="w-full h-full object-cover"
+                     onerror="this.src='https://via.placeholder.com/320x320?text=No+Image';" alt="farm">
+              </c:otherwise>
+            </c:choose>
           </div>
 
           <div class="mt-3 text-sm text-gray-600">อัปโหลดรูปโปรไฟล์ร้าน</div>
@@ -220,7 +231,7 @@
         <p class="hint mb-3">สูงสุด 10 รูป | เลือกรูปใหม่ / ติ๊กเพื่อลบ / ลากสลับเรียงรูปเดิม</p>
 
         <section>
-          <div class="bg-white border border-gray-200 rounded-2xl p-4 md:p-5 shadow-sm">
+          <div class="bg-white border border-gray-200 rounded-2xl p-4 md:p-5 shadowsm">
             <div class="flex items-start justify-between gap-3">
               <div class="text-sm border rounded-full px-3 py-1 bg-white">เลือกแล้ว: <span id="countNow"><c:out value="${galCount}"/></span> / 10</div>
             </div>
@@ -391,8 +402,18 @@
                   </c:if>
                   <c:url value="${slipSrc}" var="slipSrc"/>
                 </c:if>
-                <img id="slipImg" src="${empty slipSrc ? 'https://via.placeholder.com/420x320?text=QR%2FSlip' : slipSrc}" class="max-w-[420px] max-h-[420px] rounded-lg shadow"
-                     onerror="this.src='https://via.placeholder.com/420x320?text=QR%2FSlip';" alt="slip">
+
+                <%-- cache-busting เฉพาะตอนมีสลิปจริงจากระบบ --%>
+                <c:choose>
+                  <c:when test="${empty f.slipUrl}">
+                    <img id="slipImg" src="https://via.placeholder.com/420x320?text=QR%2FSlip" class="max-w-[420px] max-h-[420px] rounded-lg shadow"
+                         onerror="this.src='https://via.placeholder.com/420x320?text=QR%2FSlip';" alt="slip">
+                  </c:when>
+                  <c:otherwise>
+                    <img id="slipImg" src="${slipSrc}?v=${now.time}" class="max-w-[420px] max-h-[420px] rounded-lg shadow"
+                         onerror="this.src='https://via.placeholder.com/420x320?text=QR%2FSlip';" alt="slip">
+                  </c:otherwise>
+                </c:choose>
               </div>
             </div>
             <div>

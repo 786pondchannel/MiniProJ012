@@ -12,22 +12,20 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * เสิร์ฟไฟล์รูปสำหรับการชำระเงิน (QR ร้าน / สลิปออเดอร์)
- * รองรับทั้งเส้นทางจากตาราง receipt.Img และ perorder.receipt_path
- *
- * โครงสร้างไฟล์ที่รองรับ:
- *   - สลิปอัปโหลด: D:/Toos/png/receipts/{uuid}.{png|jpg|jpeg|webp}   (receipt.Img เก็บ "receipts/{uuid}.ext")
- *   - QR ร้าน:     D:/Toos/png/slip/{farmerId}/qr.png (หรือไฟล์รูปใดๆ ในโฟลเดอร์นั้น)
- *   - Fallback:    D:/Toos/png/slip/{farmerId}/{orderId}.*  (กรณีเก่าที่ตั้งชื่อตาม orderId)
- */
 @Controller
 @RequestMapping("/payment")
 public class PaymentAssetController {
 
-    // โฟลเดอร์หลัก
-    private static final Path SLIP_BASE     = Paths.get("D:/Toos/png/slip");      // สำหรับ QR และ fallback เดิม
-    private static final Path RECEIPTS_DIR  = Paths.get("D:/Toos/png/receipts");  // สำหรับสลิปที่ผู้ซื้ออัปโหลดจริง
+    /* ===================== โฟลเดอร์หลัก (อิง UPLOAD_DIR) ===================== */
+    private static Path uploadRoot() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String defaultPath = os.contains("win") ? "D:/Toos/png/" : "/app/uploads/";
+        String env = System.getenv().getOrDefault("UPLOAD_DIR", defaultPath);
+        return Paths.get(env).toAbsolutePath().normalize();
+    }
+    private static final Path UPLOAD_ROOT  = uploadRoot();
+    private static final Path SLIP_BASE    = UPLOAD_ROOT.resolve("slip");      // QR ร้านค้า: /uploads/slip/<farmerId>/*
+    private static final Path RECEIPTS_DIR = UPLOAD_ROOT.resolve("receipts");  // สลิปผู้ซื้อ: /uploads/receipts/*
 
     /* =============================== Endpoints =============================== */
 
@@ -41,27 +39,26 @@ public class PaymentAssetController {
         if (f.isEmpty()) f = newestImage(dir);
         if (f.isEmpty()) { notFound(resp, "QR image not found"); return; }
 
+        // QR เปลี่ยนไม่บ่อย: cache ได้เล็กน้อย
         streamFile(resp, f.get(), true, 300);
     }
 
     /**
      * GET /payment/receipt/{orderId} : รูปสลิปล่าสุดของออเดอร์
      * ลำดับความสำคัญ:
-     *   1) ตาราง receipt (ล่าสุด) -> RECEIPTS_DIR
+     *   1) ตาราง receipt (ล่าสุด) -> <UPLOAD_ROOT>/receipts
      *   2) perorder.receipt_path (http/https → redirect, path → stream)
-     *   3) Fallback: SLIP_BASE/{farmerId}/{orderId}.*
+     *   3) Fallback: <UPLOAD_ROOT>/slip/{farmerId}/{orderId}.*
      */
     @GetMapping("/receipt/{orderId}")
     public void getOrderReceipt(@PathVariable String orderId, HttpServletResponse resp) throws IOException {
         String farmerId = null;
         String receiptPathCol = null;
 
-        // ดึง farmerId + (อาจจะ) receipt_path จาก perorder
         try (Session s = HibernateConnection.getSessionFactory().openSession()) {
-
             boolean hasReceiptPath = hasReceiptPathColumn(s);
 
-            // 1) เช็คสลิปล่าสุดจากตาราง receipt ก่อนเลย (วิธีหลักของคุณตอนอัปโหลด)
+            // 1) สลิปล่าสุดจากตาราง receipt
             @SuppressWarnings("unchecked")
             List<Object[]> r1 = (List<Object[]>) s.createNativeQuery("""
                 SELECT Img
@@ -75,11 +72,10 @@ public class PaymentAssetController {
                 String img = String.valueOf(r1.get(0)[0]).trim(); // เช่น "receipts/uuid.jpg" หรือ "/uploads/receipts/..."
                 Path p = resolveReceiptImgPath(img);
                 if (p != null && Files.isRegularFile(p)) {
-                    // ไม่แคช เพื่อให้เห็นไฟล์ล่าสุดทันที
+                    // ห้าม cache เพื่อเห็นไฟล์ล่าสุดทันที
                     streamFileNoCache(resp, p);
                     return;
                 }
-                // ถ้ามีค่าใน DB แต่ไฟล์หาย → ไปขั้นต่อไป
             }
 
             // 2) อ่าน farmerId + perorder.receipt_path (ถ้ามี)
@@ -100,34 +96,32 @@ public class PaymentAssetController {
             if (hasReceiptPath && row.length > 1 && row[1] != null) {
                 receiptPathCol = String.valueOf(row[1]).trim();
             }
-
         } catch (Exception ex) {
             notFound(resp, "order lookup error");
             return;
         }
 
-        // 2.1) ถ้ามี perorder.receipt_path → ใช้ก่อน
+        // 2.1) perorder.receipt_path มาก่อน
         if (receiptPathCol != null && !receiptPathCol.isBlank()) {
             String low = receiptPathCol.toLowerCase(Locale.ROOT);
             if (low.startsWith("http://") || low.startsWith("https://")) {
-                // รูปออนไลน์ → redirect
                 resp.setStatus(302);
                 resp.setHeader("Location", receiptPathCol);
                 return;
             }
             Path p = resolveReceiptImgPath(receiptPathCol);
             if (p == null) {
-                // รองรับกรณีให้ path แปลกๆ → ลองมอง relative จาก SLIP_BASE เผื่อ
+                // เผื่อ path แปลก → ลอง relative จาก SLIP_BASE
                 p = safe(SLIP_BASE.resolve(receiptPathCol.replace("\\","/")));
             }
             if (p != null && Files.isRegularFile(p)) {
                 streamFileNoCache(resp, p);
                 return;
             }
-            // ถ้ามีค่าแต่ไฟล์ไม่อยู่ → ไป fallback ข้อ 3
+            // ตกลงมา fallback 3)
         }
 
-        // 3) Fallback เดิม: หาใน SLIP_BASE/{farmerId}/{orderId}.*
+        // 3) Fallback: SLIP_BASE/{farmerId}/{orderId}.*
         if (farmerId == null || farmerId.isBlank()) { notFound(resp, "farmerId missing"); return; }
         Path dir = safe(SLIP_BASE.resolve(sanitizeId(farmerId)));
         if (!Files.isDirectory(dir)) { notFound(resp, "dir not found"); return; }
@@ -143,13 +137,12 @@ public class PaymentAssetController {
 
     /* =============================== Helpers =============================== */
 
-    /** กัน path traversal และ normalize ให้ชัวร์ว่าภายใต้ไดเรคทอรีที่คาดหวัง */
+    /** กัน path traversal และยืนยันว่าอยู่ใต้ UPLOAD_ROOT เท่านั้น */
     private Path safe(Path candidate) throws IOException {
         Path norm = candidate.normalize().toAbsolutePath();
-        Path slip = SLIP_BASE.normalize().toAbsolutePath();
-        Path recp = RECEIPTS_DIR.normalize().toAbsolutePath();
-        if (!norm.startsWith(slip) && !norm.startsWith(recp)) {
-            throw new IOException("Blocked path outside allowed base");
+        Path base = UPLOAD_ROOT.normalize().toAbsolutePath();
+        if (!norm.startsWith(base)) {
+            throw new IOException("Blocked path outside upload root");
         }
         return norm;
     }
@@ -166,21 +159,25 @@ public class PaymentAssetController {
                 || name.endsWith(".webp") || name.endsWith(".gif");
     }
 
-    /** map ค่า Img จาก DB → ไฟล์จริงในดิสก์ (รองรับทั้ง relative หลายรูปแบบ และ absolute) */
+    /** map ค่า Img จาก DB → ไฟล์จริงในดิสก์ (รองรับ relative/absolute ที่พบบ่อย) */
     private Path resolveReceiptImgPath(String img) throws IOException {
         if (img == null || img.isBlank()) return null;
         String clean = img.replace("\\","/");
 
-        // absolute path
-        Path p = Paths.get(clean);
-        if (p.isAbsolute()) return safe(p);
+        // absolute path → ตรวจให้อยู่ใต้ UPLOAD_ROOT
+        Path abs = Paths.get(clean);
+        if (abs.isAbsolute()) return safe(abs);
 
-        // relative: รองรับหลายรูปแบบที่พบบ่อย
-        if (clean.startsWith("uploads/receipts/")) clean = clean.substring("uploads/receipts/".length());
-        else if (clean.startsWith("/uploads/receipts/")) clean = clean.substring("/uploads/receipts/".length());
-        else if (clean.startsWith("receipts/")) clean = clean.substring("receipts/".length());
-        else if (clean.startsWith("/receipts/")) clean = clean.substring("/receipts/".length());
-
+        // relative: เคสยอดฮิต
+        if (clean.startsWith("/")) clean = clean.substring(1);
+        if (clean.startsWith("uploads/")) clean = clean.substring("uploads/".length());
+        if (clean.startsWith("receipts/")) {
+            return safe(RECEIPTS_DIR.resolve(clean.substring("receipts/".length())));
+        }
+        if (clean.startsWith("slip/")) {
+            return safe(SLIP_BASE.resolve(clean.substring("slip/".length())));
+        }
+        // อื่น ๆ ให้ลองแมปเข้าที่ receipts ก่อน
         return safe(RECEIPTS_DIR.resolve(clean));
     }
 
@@ -250,11 +247,11 @@ public class PaymentAssetController {
         String ct = Files.probeContentType(file);
         if (ct == null || !ct.startsWith("image/")) {
             String n = file.getFileName().toString().toLowerCase(Locale.ROOT);
-            if (n.endsWith(".png"))      ct = "image/png";
+            if      (n.endsWith(".png"))       ct = "image/png";
             else if (n.endsWith(".jpg") || n.endsWith(".jpeg")) ct = "image/jpeg";
-            else if (n.endsWith(".webp")) ct = "image/webp";
-            else if (n.endsWith(".gif"))  ct = "image/gif";
-            else                          ct = "application/octet-stream";
+            else if (n.endsWith(".webp"))      ct = "image/webp";
+            else if (n.endsWith(".gif"))       ct = "image/gif";
+            else                               ct = "application/octet-stream";
         }
 
         resp.setStatus(200);
@@ -277,7 +274,9 @@ public class PaymentAssetController {
     private boolean hasReceiptPathColumn(Session s) {
         try {
             @SuppressWarnings("unchecked")
-            List<Object[]> rows = (List<Object[]>) s.createNativeQuery("SHOW COLUMNS FROM perorder LIKE 'receipt_path'").list();
+            List<Object[]> rows = (List<Object[]>) s.createNativeQuery(
+                    "SHOW COLUMNS FROM perorder LIKE 'receipt_path'"
+            ).list();
             return rows != null && !rows.isEmpty();
         } catch (Exception e) {
             return false;

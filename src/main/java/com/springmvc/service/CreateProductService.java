@@ -18,8 +18,22 @@ import java.util.*;
 @Service
 public class CreateProductService {
 
-    /** ต้องตรงกับ WebConfig:  /uploads/**  ->  file:///D:/Toos/png/ */
-    private static final Path UPLOAD_ROOT = Paths.get("D:/Toos/png");
+    /** โฟลเดอร์ฐานของ uploads — อ้างจากตัวแปรแวดล้อม UPLOAD_DIR; ถ้าไม่ตั้ง จะเดาให้ตาม OS */
+    private static Path resolveUploadBase() {
+        String env = System.getenv("UPLOAD_DIR");
+        if (env != null && !env.isBlank()) {
+            return Paths.get(env).toAbsolutePath().normalize();
+        }
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (os.contains("win")) {
+            return Paths.get("D:/Toos/png").toAbsolutePath().normalize();
+        }
+        return Paths.get("/app/uploads").toAbsolutePath().normalize();
+    }
+    private static final Path UPLOAD_BASE = resolveUploadBase();
+
+    /** sub-folder สำหรับรูปสินค้า (URL จะออกเป็น /uploads/products/...) */
+    private static final String PRODUCT_SUBDIR = "products";
 
     // ชุดค่าสถานะที่ยอมรับ
     private static final Set<String> ALLOWED_STATUS = new HashSet<>(Arrays.asList(
@@ -65,7 +79,7 @@ public class CreateProductService {
                             ProductImage pi = new ProductImage();
                             pi.setImageId(rs.getString("imageId"));
                             pi.setProductId(rs.getString("productId"));
-                            pi.setImageUrl(rs.getString("imageUrl"));
+                            pi.setImageUrl(rs.getString("imageUrl")); // เก็บแบบ products/xxx.png
                             pi.setSortOrder(rs.getInt("sortOrder"));
                             list.add(pi);
                         }
@@ -99,7 +113,7 @@ public class CreateProductService {
 
     /* ================= สร้างสินค้าใหม่ ================= */
     public void saveNew(Product product, List<MultipartFile> imageFiles, String farmerId) {
-        ensureUploadFolder();
+        ensureUploadFolders();
 
         // productId
         String productId = (product.getProductId() == null || product.getProductId().isBlank())
@@ -112,21 +126,22 @@ public class CreateProductService {
         int stockKg = Math.max(0, product.getStock());
         final BigDecimal price = safePrice(product.getPrice());
 
-        // กติกาใหม่: availability มาจาก "status" (ไม่ผูกกับ stock)
+        // กติกาใหม่: availability มาจาก "status"
         final String statusFinal = normalizeStatus(product.getStatus(), /*fallback*/ true);
         final boolean availabilityFinal = isOpenStatus(statusFinal);
 
         final String insertProduct = """
             INSERT INTO product
               (productId, productname, description, price, stock, categoryId,
-               farmerId, availability, status)
-            VALUES (?,?,?,?,?,?,?,?,?)
+               farmerId, availability, status, img)
+            VALUES (?,?,?,?,?,?,?,?,?,?)
         """;
 
         try (Session s = HibernateConnection.getSessionFactory().openSession()) {
             Transaction tx = s.beginTransaction();
             try {
                 s.doWork(conn -> {
+                    // 1) แทรกแม่ก่อน (img = NULL) เพื่อให้ FK ใน product_image ไม่ล้ม
                     try (PreparedStatement ps = conn.prepareStatement(insertProduct)) {
                         ps.setString(1, productId);
                         ps.setString(2, safe(product.getProductname(), 100));
@@ -137,10 +152,14 @@ public class CreateProductService {
                         ps.setString(7, product.getFarmerId());
                         ps.setBoolean(8, availabilityFinal);
                         ps.setString(9, statusFinal);
+                        ps.setString(10, null); // ยังไม่ตั้ง cover รอข้อถัดไป
                         ps.executeUpdate();
                     }
 
+                    // 2) บันทึกรูป + แทรก product_image (ตอนนี้ product มีแล้ว จึงไม่ติด FK)
                     String cover = saveImagesAndInsertRows(conn, productId, imageFiles);
+
+                    // 3) อัปเดต cover ลง product.img ถ้ามีรูปแรก
                     if (cover != null) {
                         tryUpdateCoverImage(conn, productId, cover);
                     }
@@ -161,7 +180,7 @@ public class CreateProductService {
                        String farmerId,
                        String[] deleteImageIds) {
 
-        ensureUploadFolder();
+        ensureUploadFolders();
 
         String productId = product.getProductId();
         if (productId == null || productId.isBlank()) {
@@ -244,7 +263,7 @@ public class CreateProductService {
                         try (ResultSet rs = ps.executeQuery()) {
                             if (rs.next()) {
                                 owner = rs.getString("farmerId");
-                                cover = rs.getString("img");
+                                cover = rs.getString("img"); // products/xxx.png
                             }
                         }
                     }
@@ -257,7 +276,7 @@ public class CreateProductService {
                     long pre = ref.getOrDefault("preorderdetail", 0L);
                     if (per + pre > 0) {
                         throw new RuntimeException(
-                            "ลบสินค้าไม่ได้: มีคำสั่งซื้อ/พรีออเดอร์อ้างอิงอยู่ (perorder: " + per + ", preorderdetail: " + pre + ")"
+                                "ลบสินค้าไม่ได้: มีคำสั่งซื้อ/พรีออเดอร์อ้างอิงอยู่ (perorder: " + per + ", preorderdetail: " + pre + ")"
                         );
                     }
 
@@ -266,7 +285,7 @@ public class CreateProductService {
                         ps.setString(1, productId);
                         try (ResultSet rs = ps.executeQuery()) {
                             while (rs.next()) {
-                                String f = rs.getString("imageUrl");
+                                String f = rs.getString("imageUrl"); // products/xxx.png
                                 if (f != null && !f.isEmpty()) filesToDelete.add(f);
                             }
                         }
@@ -299,8 +318,11 @@ public class CreateProductService {
 
         // ลบไฟล์จริงหลัง commit (best-effort)
         Set<String> uniq = new HashSet<>(filesToDelete);
-        for (String fn : uniq) {
-            try { Files.deleteIfExists(UPLOAD_ROOT.resolve(fn)); } catch (Exception ignore) {}
+        for (String rel : uniq) {
+            try {
+                if (rel.startsWith("http")) continue; // ข้าม URL ภายนอก
+                Files.deleteIfExists(UPLOAD_BASE.resolve(rel)); // rel เช่น products/xxx.png
+            } catch (Exception ignore) {}
         }
     }
 
@@ -343,6 +365,9 @@ public class CreateProductService {
         String first = null;
         int sort = nextSortOrder(conn, productId);
 
+        Path productDir = UPLOAD_BASE.resolve(PRODUCT_SUBDIR).normalize();
+        try { Files.createDirectories(productDir); } catch (IOException ignore) {}
+
         for (MultipartFile mf : files) {
             if (mf == null || mf.isEmpty()) continue;
 
@@ -350,7 +375,12 @@ public class CreateProductService {
             String ext = getExt(original);
             String filename = UUID.randomUUID() + ext;
             String imageId = UUID.randomUUID().toString();
-            Path dest = UPLOAD_ROOT.resolve(filename);
+            Path dest = productDir.resolve(filename).normalize();
+
+            // safety: ห้ามออกนอกโฟลเดอร์
+            if (!dest.startsWith(productDir)) {
+                throw new IllegalArgumentException("Invalid file path");
+            }
 
             try {
                 Files.copy(mf.getInputStream(), dest, StandardCopyOption.REPLACE_EXISTING);
@@ -358,10 +388,13 @@ public class CreateProductService {
                 throw new RuntimeException("บันทึกรูปไม่สำเร็จ: " + original, e);
             }
 
+            // เก็บเป็น path สัมพัทธ์จากโฟลเดอร์ฐาน: products/filename
+            String relative = PRODUCT_SUBDIR + "/" + filename;
+
             try (PreparedStatement ps = conn.prepareStatement(insertImage)) {
                 ps.setString(1, imageId);
                 ps.setString(2, productId);
-                ps.setString(3, filename);
+                ps.setString(3, relative);
                 ps.setInt(4, sort++);
                 ps.setTimestamp(5, new Timestamp(System.currentTimeMillis()));
                 ps.executeUpdate();
@@ -370,29 +403,29 @@ public class CreateProductService {
                 throw e;
             }
 
-            if (first == null) first = filename;
+            if (first == null) first = relative;
         }
         return first;
     }
 
     private void deleteImagesByIds(Connection conn, String productId, String[] ids) throws SQLException {
         final String q = "SELECT imageUrl FROM product_image WHERE imageId=? AND productId=?";
-        final String d = "DELETE FROM product_image WHERE imageId=? AND ProductId=?";
+        final String d = "DELETE FROM product_image WHERE imageId=? AND productId=?";
 
         for (String id : ids) {
             if (isBlank(id)) continue;
 
-            String url = null;
+            String rel = null; // products/xxx.png
             try (PreparedStatement ps = conn.prepareStatement(q)) {
                 ps.setString(1, id);
                 ps.setString(2, productId);
                 try (ResultSet rs = ps.executeQuery()) {
-                    if (rs.next()) url = rs.getString("imageUrl");
+                    if (rs.next()) rel = rs.getString("imageUrl");
                 }
             }
 
-            if (url != null) {
-                try { Files.deleteIfExists(UPLOAD_ROOT.resolve(url)); } catch (IOException ignore) {}
+            if (rel != null && !rel.startsWith("http")) {
+                try { Files.deleteIfExists(UPLOAD_BASE.resolve(rel)); } catch (IOException ignore) {}
             }
 
             try (PreparedStatement ps = conn.prepareStatement(d)) {
@@ -403,10 +436,10 @@ public class CreateProductService {
         }
     }
 
-    private void tryUpdateCoverImage(Connection conn, String productId, String filename) throws SQLException {
+    private void tryUpdateCoverImage(Connection conn, String productId, String relative) throws SQLException {
         final String upd = "UPDATE product SET img=? WHERE productId=?";
         try (PreparedStatement ps = conn.prepareStatement(upd)) {
-            ps.setString(1, filename);
+            ps.setString(1, relative); // products/xxx.png
             ps.setString(2, productId);
             ps.executeUpdate();
         } catch (SQLException ignore) { /* ถ้าไม่มีคอลัมน์ img ก็ข้ามได้ */ }
@@ -428,8 +461,11 @@ public class CreateProductService {
 
     /* ================= Helpers ================= */
 
-    private void ensureUploadFolder() {
-        try { Files.createDirectories(UPLOAD_ROOT); } catch (IOException ignored) {}
+    private void ensureUploadFolders() {
+        try {
+            Files.createDirectories(UPLOAD_BASE);
+            Files.createDirectories(UPLOAD_BASE.resolve(PRODUCT_SUBDIR));
+        } catch (IOException ignored) {}
     }
 
     private static boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
@@ -446,12 +482,6 @@ public class CreateProductService {
         if (p.compareTo(BigDecimal.ZERO) < 0) p = BigDecimal.ZERO;
         if (p.compareTo(new BigDecimal("9999999")) > 0) p = new BigDecimal("9999999");
         return p.setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private static boolean parseBool(Object v) {
-        if (v == null) return false;
-        String s = String.valueOf(v).trim().toLowerCase(Locale.ROOT);
-        return "true".equals(s) || "1".equals(s) || "on".equals(s) || "yes".equals(s);
     }
 
     // === helper: คืนค่านามสกุลไฟล์ (รวมจุด) เช่น ".png", ถ้าไม่มีให้คืน "" ===

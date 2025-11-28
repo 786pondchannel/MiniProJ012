@@ -198,6 +198,39 @@
       100%{transform:translate(0,0)     scale(1.20)}
     }
     @keyframes cele-shadow-grow{from{opacity:0; transform:scale(.6)} to {opacity:.7; transform:scale(1.15)}}
+
+    /* ===== CHAT (ใหม่ให้เหมือนภาพตัวอย่าง) ===== */
+    #chatModal .chat-sheet{
+      width:min(96vw,980px);
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 30px 100px rgba(2,6,23,.6);
+      overflow:hidden;
+      border:1px solid #e5e7eb;
+    }
+    #chatModal .chat-header{
+      background:linear-gradient(90deg,#059669,#10b981);
+      color:#fff;
+      padding:14px 18px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    #chatModal .chat-id{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      opacity:.9; font-size:.8rem;
+    }
+    #chatModal .chat-body{
+      padding:18px; height:min(70vh,560px); overflow:auto; background:#f8fafc;
+    }
+    #chatModal .chat-bubble{
+      background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px 14px;
+      box-shadow:0 6px 18px rgba(2,6,23,.06);
+    }
+    #chatModal .chat-bubble.me{ background:#10b981; color:#fff; border-color:transparent; }
+    #chatModal .chat-bubble-title{ font-weight:800; margin-bottom:6px; }
+    #chatModal .chat-footer{ padding:14px; background:#fff; border-top:1px solid #e5e7eb; }
+    #chatModal .chat-actions{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    @media (min-width: 640px){ #chatModal .chat-actions{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+    @media (min-width: 920px){ #chatModal .chat-actions{ grid-template-columns:repeat(6,minmax(0,1fr)); } }
   </style>
 </head>
 <body class="text-slate-800">
@@ -418,7 +451,7 @@
                     <span class="chip ${orderCls}"><c:out value="${ost}"/></span>
                   </td>
 
-                  <!-- แจ้งเตือนด่วน -->
+                  <!-- แจ้งเตือนด่วน (ฝังในหน้านี้เลย) -->
                   <td class="py-4 px-3 align-top min-w-[420px]">
                     <div class="space-y-2">
                       <!-- ร้านยกเลิก -->
@@ -493,6 +526,9 @@
                         <div class="rounded-xl border-2 border-emerald-300 bg-emerald-50 text-emerald-900 p-3">
                           <div class="font-semibold mb-2">อัปโหลดสลิปเพื่อแจ้งชำระ</div>
                           <form class="flex flex-wrap items-center gap-2" method="post" action="${ctx}/orders/${oid}/upload-receipt" enctype="multipart/form-data">
+                            <c:if test="${not empty _csrf}">
+                              <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                            </c:if>
                             <input type="text" name="reference" placeholder="อ้างอิง (ถ้ามี)" class="flex-1 min-w-[120px] px-3 py-2 border rounded-md"/>
                             <input type="file" name="file" accept="image/*" class="flex-1 min-w-[220px] text-sm"/>
                             <button class="btn btn-sm" type="submit">อัปโหลดสลิป</button>
@@ -693,20 +729,43 @@
     </div>
   </div>
 
-  <!-- ===== Chat Modal (ขั้นต่ำให้ปุ่มแชทใช้งานได้) ===== -->
+  <!-- ===== Chat Modal (ใหม่) ===== -->
   <div id="chatModal" class="fixed inset-0 z-[9998] hidden">
     <div class="absolute inset-0 bg-black/60" onclick="closeChat()"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-      <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl border flex flex-col max-h-[80vh]">
-        <div class="px-5 py-3 border-b flex items-center justify-between">
-          <div class="font-bold">แจ้งเตือนด่วน • ออเดอร์ <span id="chatOrder">-</span></div>
-          <button class="text-gray-500 hover:text-gray-700" onclick="closeChat()">✕</button>
-        </div>
-        <div id="chatBody" class="p-4 overflow-auto space-y-2">
+    <div class="absolute inset-0 flex items-center justify-center p-4" onclick="event.stopPropagation()">
+      <section class="chat-sheet">
+        <header class="chat-header">
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-lg sm:text-xl flex items-center gap-2">
+              <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-white/20">💬</span>
+              แชทกับร้าน
+            </span>
+          </div>
+          <div class="flex items-center gap-3">
+            <button class="hidden sm:inline-flex btn btn-emerald !py-2" id="chatHeaderStatusBtn" onclick="sendQuick(null,'ORDER_STATUS')">
+              สถานะคำสั่งซื้อ
+            </button>
+            <span class="chat-id" id="chatHeaderOid">#-</span>
+            <button class="px-2 py-1 rounded-md bg-white/10 hover:bg-white/20" onclick="closeChat()">✕</button>
+          </div>
+        </header>
+
+        <div id="chatBody" class="chat-body space-y-3">
           <div id="chatEmpty" class="text-center text-gray-500">เริ่มสนทนาได้เลย…</div>
         </div>
-        <div class="p-3 border-t text-xs text-gray-500">* ตัวอย่างหน้าต่างแชทสำหรับข้อความด่วน</div>
-      </div>
+
+        <footer class="chat-footer">
+          <div class="chat-actions">
+            <button class="btn" onclick="sendQuick(null,'ORDER_STATUS')">ถามสถานะ</button>
+            <button class="btn" onclick="sendQuick(null,'STORE_CONTACT')">ข้อมูลติดต่อร้าน</button>
+            <button class="btn" onclick="sendQuick(null,'STORE_ADDRESS')">ขอที่อยู่ฟาร์ม</button>
+            <button class="btn" id="chatActionQR" onclick="sendQuick(null,'REQUEST_PAYMENT_QR')">ขอชำระ/QR</button>
+            <button class="btn" onclick="sendQuick(null,'HOW_TO_UPLOAD')">วิธีอัปโหลดสลิป</button>
+            <button class="btn btn-outline" onclick="closeChat()">ปิด</button>
+          </div>
+          <div class="mt-2 text-[11px] text-gray-500">* ตัวอย่างหน้าต่างแชทสำหรับข้อความด่วน</div>
+        </footer>
+      </section>
     </div>
   </div>
 
@@ -720,6 +779,9 @@
           <button class="text-gray-500 hover:text-gray-700" onclick="closeCancel()">✕</button>
         </div>
         <form id="cancelForm" method="post">
+          <c:if test="${not empty _csrf}">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+          </c:if>
           <div class="p-5">
             <div class="text-gray-700">ยืนยันการยกเลิกออเดอร์ <span id="cancelId" class="font-mono px-2 py-0.5 rounded bg-gray-100">-</span> หรือไม่?</div>
             <div class="text-sm text-gray-500 mt-1">ยกเลิกได้เฉพาะช่วงขั้นที่ 1–2 เท่านั้น</div>
@@ -767,6 +829,9 @@
         const b=document.getElementById('profileBtn'), m=document.getElementById('profileMenu');
         if(m) m.classList.add('hidden');
         if(b) b.setAttribute('aria-expanded','false');
+        closeChat();
+        closeViewer();
+        closeCancel();
       }
     });
 
@@ -778,7 +843,7 @@
       if(typeof t==='number') return t<1e12 ? t*1000 : t;
       const s=String(t).trim(); if(/^\d{9,16}$/.test(s)){ const n=Number(s); return n<1e12 ? n*1000 : n; }
       const iso=Date.parse(s.replace(' ','T')); if(!Number.isNaN(iso)) return iso;
-      const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+      const m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?(?::(\d{2}))?$/);
       if(m){ const[,d,M,Y,hh='0',mm='0',ss='0']=m; const ms=new Date(+Y,+M-1,+d,+hh,+mm,+ss).getTime(); if(!Number.isNaN(ms)) return ms; }
       return null;
     }
@@ -803,7 +868,6 @@
       if(lk1==='1') tr.dataset.buyerok = 'true';
       if(lk2==='1') tr.dataset.finished = 'true';
     }
-
     function hideBuyerOnceButton(tr){
       const btn = tr.querySelector('button[onclick^="buyerConfirm"]');
       if(!btn) return;
@@ -987,17 +1051,22 @@
       });
     }
 
-    /* ===== แชท / ด่วน ===== */
+    /* ===== แชท / ด่วน (ใหม่) ===== */
     let CUR_ORDER = null;
+
     function openChat(orderId){
       CUR_ORDER = orderId;
-      const chatModal=document.getElementById('chatModal');
-      if(!chatModal) return;
-      document.getElementById('chatOrder').textContent=String(orderId||'-');
-      const chatBody=document.getElementById('chatBody');
-      const chatEmpty=document.getElementById('chatEmpty');
-      chatBody.innerHTML=''; chatBody.appendChild(chatEmpty); chatEmpty.classList.remove('hidden');
-      chatModal.classList.remove('hidden'); document.body.style.overflow='hidden';
+      const m=document.getElementById('chatModal');
+      if(!m) return;
+      document.getElementById('chatHeaderOid').textContent = '#' + String(orderId||'-');
+      const body=document.getElementById('chatBody');
+      const empty=document.getElementById('chatEmpty');
+      body.innerHTML=''; body.appendChild(empty); empty.classList.remove('hidden');
+      m.classList.remove('hidden');
+      document.body.style.overflow='hidden';
+
+      // toggle ปุ่ม QR ในแชทตามสถานะ
+      updateChatQRButton();
     }
     function closeChat(){ const m=document.getElementById('chatModal'); if(m){ m.classList.add('hidden'); document.body.style.overflow=''; } }
     window.openChat=openChat; window.closeChat=closeChat;
@@ -1006,13 +1075,28 @@
       const mine=String(n.senderRole||'').toUpperCase()==='BUYER';
       const wrap=document.createElement('div'); wrap.className='flex '+(mine?'justify-end':'justify-start');
       const col=document.createElement('div'); col.className='max-w-[86%]';
-      const box=document.createElement('div'); box.className='rounded-xl px-3 py-2 shadow '+(mine?'bg-emerald-600 text-white':'bg-white border');
-      if(n.title){ const t=document.createElement('div'); t.className='text-sm font-semibold'; t.textContent=n.title; box.appendChild(t); }
+      const box=document.createElement('div'); box.className='chat-bubble '+(mine?'me':'');
+      if(n.title){ const t=document.createElement('div'); t.className='chat-bubble-title'; t.textContent=n.title; box.appendChild(t); }
       if(n.imageUrl){ const img=new Image(); img.src=n.imageUrl; img.alt='แนบรูป'; img.className='mt-2 rounded-md border cursor-zoom-in'; img.style.maxWidth='360px'; img.onclick=()=>openViewer(n.imageUrl, n.title||'รูปแนบ'); box.appendChild(img); }
-      if(n.message){ const m=document.createElement('div'); m.className='text-sm mt-1 whitespace-pre-wrap'; m.textContent=n.message; box.appendChild(m); }
+      if(n.message){ const m=document.createElement('div'); m.className='text-sm whitespace-pre-wrap'; m.textContent=n.message; box.appendChild(m); }
       col.appendChild(box); wrap.appendChild(col); document.getElementById('chatBody').appendChild(wrap);
       document.getElementById('chatEmpty').classList.add('hidden');
       document.getElementById('chatBody').scrollTop=document.getElementById('chatBody').scrollHeight;
+    }
+    function renderStatusCards(ost,pst){
+      // การ์ดสั้นๆ 2 กล่องเหมือนภาพตัวอย่าง
+      const body=document.getElementById('chatBody');
+      const make = (title,lines) => {
+        const wrap=document.createElement('div'); wrap.className='flex justify-start';
+        const card=document.createElement('div'); card.className='chat-bubble';
+        const t=document.createElement('div'); t.className='chat-bubble-title'; t.textContent=title; card.appendChild(t);
+        const m=document.createElement('div'); m.className='text-sm whitespace-pre-wrap'; m.textContent=lines; card.appendChild(m);
+        wrap.appendChild(card); body.appendChild(wrap);
+      };
+      make('สถานะคำสั่งซื้อ', `ORDER: ${ost}\nPAYMENT: ${pst}`);
+      make('สถานะคำสั่งซื้อ', `สถานะปัจจุบันจากตาราง\n• ORDER: ${ost}\n• PAYMENT: ${pst}`);
+      document.getElementById('chatEmpty').classList.add('hidden');
+      body.scrollTop=body.scrollHeight;
     }
     function tFrom(a){ switch(String(a||'').toUpperCase()){
       case 'ORDER_STATUS':return 'สถานะคำสั่งซื้อ';
@@ -1030,16 +1114,29 @@
       case 'REQUEST_PAYMENT':return 'ขอวิธีชำระเงินหรือ QR ครับ/ค่ะ';
       case 'HOW_TO_UPLOAD':return 'ขอวิธีอัปโหลดสลิปชำระเงินครับ/ค่ะ';
       default:return 'ข้อความ'; } }
+
+    function updateChatQRButton(){
+      const qrBtn=document.getElementById('chatActionQR');
+      if(!qrBtn) return;
+      const tr = Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(CUR_ORDER));
+      const allow = tr ? (tr.dataset.ost||'').toUpperCase()==='FARMER_CONFIRMED' : false;
+      if(allow){ qrBtn.classList.remove('opacity-50','cursor-not-allowed'); qrBtn.disabled=false; }
+      else{ qrBtn.classList.add('opacity-50','cursor-not-allowed'); qrBtn.disabled=true; }
+    }
+
     window.sendQuick = async (orderId, action)=>{
       const oid = orderId || CUR_ORDER; if(!oid){ toast('ยังไม่มีหมายเลขออเดอร์'); return; }
       if (document.getElementById('chatModal').classList.contains('hidden')) openChat(oid);
-      document.getElementById('chatOrder').textContent = String(oid);
+      document.getElementById('chatHeaderOid').textContent = '#' + String(oid);
+
+      // ผู้ซื้อส่ง
       renderBubble({ senderRole:'BUYER', title:tFrom(action), message:mFrom(action) });
 
+      // ตอบอัตโนมัติแบบการ์ดให้เหมือนภาพ
       if (String(action).toUpperCase()==='ORDER_STATUS'){
         const tr = Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(oid));
-        const ost=tr?.dataset.ost || '-'; const pst=tr?.dataset.pstat || '-';
-        renderBubble({ senderRole:'SYSTEM', title:'สถานะคำสั่งซื้อ', message:'ORDER: '+ost+'\nPAYMENT: '+pst });
+        const ost=(tr?.dataset.ost || '-').toUpperCase(); const pst=(tr?.dataset.pstat || '-').toUpperCase();
+        renderStatusCards(ost, pst);
       }
       if (String(action).toUpperCase()==='REQUEST_PAYMENT_QR' || String(action).toUpperCase()==='REQUEST_PAYMENT'){
         const tr = Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(oid));
@@ -1051,7 +1148,17 @@
           renderBubble({ senderRole:'FARMER', title:'ชำระเงินด้วย QR', message:url?'สแกน QR เพื่อโอนได้เลย':'ยังไม่พบ QR ของร้าน', imageUrl:url||undefined });
         }
       }
+      if (String(action).toUpperCase()==='HOW_TO_UPLOAD'){
+        renderBubble({ senderRole:'SYSTEM', title:'วิธีอัปโหลดสลิป', message:'ไปที่แถวออเดอร์นี้ ▶ ปุ่ม “อัปโหลดสลิปเพื่อแจ้งชำระ” แล้วเลือกไฟล์รูปสลิปเพื่อส่ง' });
+      }
+      if (String(action).toUpperCase()==='STORE_CONTACT'){
+        renderBubble({ senderRole:'FARMER', title:'ข้อมูลติดต่อร้าน (ตัวอย่าง)', message:'โทร: 081-234-5678\nอีเมล: farm@example.com' });
+      }
+      if (String(action).toUpperCase()==='STORE_ADDRESS'){
+        renderBubble({ senderRole:'FARMER', title:'ที่อยู่ฟาร์ม (ตัวอย่าง)', message:'123 หมู่ 4 ต.ตัวอย่าง อ.ตัวอย่าง จ.ตัวอย่าง 10110' });
+      }
 
+      // fire-and-forget POST ไป server
       try{
         const body=new URLSearchParams({ action:String(action||'').toUpperCase() });
         const headers = {'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'};
@@ -1213,6 +1320,17 @@
         toggleRowUI(tr);
       }, CELE_TOTAL + 50);
     };
+
+    /* ===== Cancel modal open/close ===== */
+    function openCancel(oid){
+      const m=document.getElementById('cancelModal'); const idEl=document.getElementById('cancelId'); const f=document.getElementById('cancelForm');
+      if(!m||!idEl||!f) return;
+      idEl.textContent=String(oid||'-');
+      f.action = ctx + '/orders/' + encodeURIComponent(oid) + '/cancel';
+      m.classList.remove('hidden'); document.body.style.overflow='hidden';
+    }
+    function closeCancel(){ const m=document.getElementById('cancelModal'); if(m){ m.classList.add('hidden'); document.body.style.overflow=''; } }
+    window.openCancel=openCancel; window.closeCancel=closeCancel;
 
     // init stepper display
     document.querySelectorAll('#tbody tr[data-oid]').forEach(toggleRowUI);

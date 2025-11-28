@@ -31,7 +31,15 @@ public class OrderService {
     private static final String PAY_PAID_PENDING       = "PAID_PENDING_VERIFY";
     private static final String PAY_PAID_CONFIRMED     = "PAID_CONFIRMED";
 
-    private static final Path RECEIPTS_DIR = Paths.get("D:/Toos/png/receipts");
+    /* ===== โฟลเดอร์อัปโหลด (อิง env UPLOAD_DIR เหมือน WebConfig) ===== */
+    private static Path uploadRoot() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String defaultPath = os.contains("win") ? "D:/Toos/png/" : "/app/uploads/";
+        String env = System.getenv().getOrDefault("UPLOAD_DIR", defaultPath);
+        return Paths.get(env).toAbsolutePath().normalize();
+    }
+    private static final Path UPLOAD_ROOT  = uploadRoot();
+    private static final Path RECEIPTS_DIR = UPLOAD_ROOT.resolve("receipts"); // /uploads/receipts/*
 
     @Autowired
     private StockService stockService; // ✅ ใช้ตัดสต๊อก “กิโลกรัม”
@@ -48,12 +56,6 @@ public class OrderService {
         public static DeleteResult err(String r) { return new DeleteResult(false, r, 0); }
     }
 
-    /* ========================= checkout (สร้างออเดอร์ + ตัดสต๊อกทันที) =========================
-       - บันทึกหัวออเดอร์ลง perorder (status=ส่งให้ร้าน, pay=UNPAID)
-       - แทรกรายการลง preorderdetail พร้อม quantityKg (ถ้ามีคอลัมน์)
-       - ตัดสต๊อก “กิโลกรัม” ทันทีภายในทรานแซคชันเดียวกัน
-         * ถ้าสต๊อกไม่พอ → โยน Exception → Rollback ทั้งหมด
-    ============================================================================ */
     public String checkoutOneVendor(String memberId, VendorCart vc) {
         String orderId = UUID.randomUUID().toString();
         BigDecimal total = vc.getSubtotal();
@@ -208,7 +210,7 @@ public class OrderService {
        ลบได้เฉพาะช่วงขั้น 1–2:
        - orderStatus ∈ {SENT_TO_FARMER, FARMER_CONFIRMED}
        - paymentStatus ∈ {AWAITING_BUYER_PAYMENT, PAID_PENDING_VERIFY}
-       (หมายเหตุ: ถ้าคุณต้องการคืนสต๊อกเมื่อยกเลิกก่อนชำระเงิน ให้เพิ่ม logic คืนสต๊อกที่นี่)
+       (หมายเหตุ: ถ้าต้องการคืนสต๊อกเมื่อยกเลิกก่อนชำระเงิน ให้เพิ่ม logic คืนสต๊อกที่นี่)
     ========================================================================== */
     public DeleteResult hardDeleteByBuyer(String orderId, String memberId) {
         if (orderId == null || memberId == null) return DeleteResult.err("invalid");
@@ -269,27 +271,30 @@ public class OrderService {
         }
     }
 
-    /* ===== helper: map Img -> Path ===== */
+    /* ===== helper: map Img -> Path (จำกัดให้อยู่ใต้ UPLOAD_ROOT เท่านั้น) ===== */
     private Path resolveReceiptPath(String img){
-        if (img == null) return null;
+        if (img == null || img.isBlank()) return null;
         String clean = img.trim().replace("\\","/");
 
-        if (clean.matches("^[a-zA-Z]:/.*") || clean.startsWith("/")) {
-            Path p = Paths.get(clean);
-            if (Files.isRegularFile(p)) return p;
-            String noLead = clean.replaceAll("^/+","");
-            Path alt = Paths.get("D:/Toos/png").resolve(noLead).normalize();
-            if (Files.isRegularFile(alt)) return alt;
+        // absolute → อนุญาตเฉพาะที่อยู่ใต้ UPLOAD_ROOT
+        Path abs = Paths.get(clean);
+        if (abs.isAbsolute()) {
+            Path norm = abs.normalize().toAbsolutePath();
+            if (norm.startsWith(UPLOAD_ROOT) && Files.isRegularFile(norm)) return norm;
+            return null; // ไม่ลบไฟล์นอกโฟลเดอร์อัปโหลด
         }
 
-        clean = clean.replaceFirst("^/?uploads/receipts/","")
-                     .replaceFirst("^/?receipts/","");
+        // relative → รองรับหลายรูปแบบ
+        if (clean.startsWith("/")) clean = clean.substring(1);
+        if (clean.startsWith("uploads/")) clean = clean.substring("uploads/".length());
+        if (clean.startsWith("receipts/")) {
+            Path p = RECEIPTS_DIR.resolve(clean.substring("receipts/".length())).normalize();
+            return Files.isRegularFile(p) ? p : null;
+        }
 
-        Path p1 = RECEIPTS_DIR.resolve(clean).normalize();
-        if (Files.isRegularFile(p1)) return p1;
-
-        Path p2 = Paths.get("D:/Toos/png").resolve("receipts").resolve(clean).normalize();
-        return Files.isRegularFile(p2) ? p2 : null;
+        // default → ลองแมปเข้าที่ /receipts
+        Path p = RECEIPTS_DIR.resolve(clean).normalize();
+        return Files.isRegularFile(p) ? p : null;
     }
 
     public boolean cancelByBuyer(String orderId, String memberId) {

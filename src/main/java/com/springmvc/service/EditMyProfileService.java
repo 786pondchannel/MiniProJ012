@@ -9,13 +9,24 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
 import java.sql.*;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
 public class EditMyProfileService {
 
-    // ต้องตรงกับ WebConfig.addResourceHandlers("/uploads/**" -> "file:///D:/Toos/png/")
-    private static final String UPLOAD_DIR = "D:/Toos/png/";
+    // ===== ให้สอดคล้องกับ WebConfig: ใช้ env UPLOAD_DIR ถ้าไม่มีก็ default (Win -> D:/Toos/png/ , อื่น ๆ -> /app/uploads/)
+    private static final String OS = System.getProperty("os.name", "").toLowerCase();
+    private static final String DEFAULT_ROOT = OS.contains("win") ? "D:/Toos/png/" : "/app/uploads/";
+    private static final String UPLOAD_ROOT = ensureTrailingSlash(System.getenv().getOrDefault("UPLOAD_DIR", DEFAULT_ROOT));
+    private static final String UPLOAD_URL_PREFIX = "/uploads/"; // URL ที่ฝั่งเว็บต้องเห็นเสมอ
+
+    private static final long MAX_SIZE = 5L * 1024 * 1024; // 5MB
+
+    private static String ensureTrailingSlash(String p) {
+        if (p == null || p.isEmpty()) return "/";
+        return (p.endsWith("/") || p.endsWith("\\")) ? p : (p + "/");
+    }
 
     /** อ่านโปรไฟล์จาก DB */
     public Member getCurrentProfile(String memberId) {
@@ -50,24 +61,28 @@ public class EditMyProfileService {
 
     /** อัปเดตโปรไฟล์ + อัปโหลดรูป (ถ้ามีเลือกไฟล์) */
     public void updateProfile(Member incoming, MultipartFile imageFile) {
-        // อ่านค่าเดิม มาช่วย merge กัน NULL/ช่องว่าง
+        // อ่านค่าเดิม
         Member current = getCurrentProfile(incoming.getMemberId());
         if (current == null) {
             throw new RuntimeException("No member found: " + incoming.getMemberId());
         }
 
-        // รูป: ถ้ามีไฟล์ใหม่ → เซฟ แล้วตั้ง URL; ถ้าไม่ → ใช้ค่าเดิม
+        // เซฟรูปใหม่ถ้ามี
         String imageUrl = current.getImageUrl();
         if (imageFile != null && !imageFile.isEmpty()) {
-            imageUrl = saveProfileImage(incoming.getMemberId(), imageFile); // ex: /uploads/profile/m001/xxx.jpg
+            validateImage(imageFile);
+            // ลบไฟล์เก่าถ้าชี้ใต้ /uploads/
+            deleteOldIfLocal(imageUrl);
+            // เซฟใหม่ลงโฟลเดอร์จริง (UPLOAD_ROOT) แล้วคืน URL /uploads/...
+            imageUrl = saveProfileImage(incoming.getMemberId(), imageFile);
         }
 
-        // Merge ฟิลด์อื่น ๆ: ถ้าไม่ได้กรอก/เป็นค่าว่าง ให้ใช้ค่าเดิม
+        // Merge ฟิลด์อื่น
         String fullname    = pick(incoming.getFullname(),    current.getFullname());
         String phoneNumber = pick(incoming.getPhoneNumber(), current.getPhoneNumber());
         String email       = pick(incoming.getEmail(),       current.getEmail());
         String address     = pick(incoming.getAddress(),     current.getAddress());
-        String password    = pick(incoming.getPassword(),    current.getPassword()); // (โปรดพิจารณา hash password จริงในโปรดักชัน)
+        String password    = pick(incoming.getPassword(),    current.getPassword()); // โปรดใช้ hash จริงในโปรดักชัน
 
         String sql = """
             UPDATE `member`
@@ -91,7 +106,8 @@ public class EditMyProfileService {
             ps.setString(6, imageUrl);
             ps.setString(7, incoming.getMemberId());
 
-            ps.executeUpdate();
+            int rows = ps.executeUpdate();
+            if (rows == 0) throw new RuntimeException("No row updated for member " + incoming.getMemberId());
 
         } catch (SQLException e) {
             String detail = "SQLState=" + e.getSQLState() + ", code=" + e.getErrorCode() + ", msg=" + e.getMessage();
@@ -99,40 +115,72 @@ public class EditMyProfileService {
         }
     }
 
-    /** เซฟไฟล์จริงด้วย Files.copy (กัน cross-drive) แล้วคืน URL สำหรับเว็บ */
+    /** เซฟไฟล์จริงแล้วคืน URL สำหรับเว็บ (เช่น /uploads/profile/{memberId}/{uuid}.jpg) */
     private String saveProfileImage(String memberId, MultipartFile file) {
         String safeMemberId = (memberId == null ? "user" : memberId.replaceAll("[^A-Za-z0-9_-]", "_"));
-        Path userDir = Paths.get(UPLOAD_DIR, "profile", safeMemberId);
 
-        // ensure dir + quick write test
+        Path root = Paths.get(UPLOAD_ROOT).toAbsolutePath().normalize();
+        Path userDir = root.resolve(Paths.get("profile", safeMemberId)).normalize();
+
+        // สร้างโฟลเดอร์
         try {
             Files.createDirectories(userDir);
-            Path probe = userDir.resolve("__write_test__.tmp");
-            Files.writeString(probe, "ok", StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            Files.deleteIfExists(probe);
         } catch (IOException e) {
-            throw new RuntimeException("[WRITE TEST FAILED] Cannot write to " + userDir.toAbsolutePath()
-                    + " | ex=" + e.getClass().getSimpleName() + " : " + e.getMessage(), e);
+            throw new RuntimeException("Cannot create upload dir: " + userDir.toAbsolutePath(), e);
         }
 
         String ext = guessExtension(file.getOriginalFilename());
         String newName = UUID.randomUUID().toString().replace("-", "") + "." + ext.toLowerCase();
-        Path dest = userDir.resolve(newName);
+        Path dest = userDir.resolve(newName).normalize();
+
+        // กัน path หลุด root
+        if (!dest.toAbsolutePath().startsWith(root.toAbsolutePath())) {
+            throw new RuntimeException("Invalid upload path");
+        }
 
         try (InputStream in = file.getInputStream()) {
             Files.copy(in, dest, StandardCopyOption.REPLACE_EXISTING);
-        } catch (FileSystemException e) {
-            throw new RuntimeException("Cannot save upload file to " + dest.toAbsolutePath()
-                    + " | ex=" + e.getClass().getSimpleName()
-                    + " | reason=" + e.getReason()
-                    + " | msg=" + e.getMessage(), e);
         } catch (IOException e) {
-            throw new RuntimeException("Cannot save upload file to " + dest.toAbsolutePath()
-                    + " | ex=" + e.getClass().getSimpleName()
-                    + " | msg=" + e.getMessage(), e);
+            throw new RuntimeException("Cannot save upload file to " + dest.toAbsolutePath(), e);
         }
 
-        return "/uploads/profile/" + safeMemberId + "/" + newName;
+        // คืน URL ที่ให้ WebConfig เสิร์ฟได้
+        return UPLOAD_URL_PREFIX + "profile/" + safeMemberId + "/" + newName;
+    }
+
+    /** ลบรูปเก่า (ถ้าชี้ใน /uploads/ เท่านั้น) */
+    private void deleteOldIfLocal(String oldUrl) {
+        if (oldUrl == null) return;
+        String url = oldUrl.trim();
+        if (url.isEmpty()) return;
+        // ข้ามกรณีเป็นลิงก์ http(s)
+        if (url.startsWith("http://") || url.startsWith("https://")) return;
+        if (!url.startsWith(UPLOAD_URL_PREFIX)) return;
+
+        Path root = Paths.get(UPLOAD_ROOT).toAbsolutePath().normalize();
+
+        // map /uploads/... -> {UPLOAD_ROOT}/...
+        String sep = FileSystems.getDefault().getSeparator();
+        String relative = url.substring(UPLOAD_URL_PREFIX.length()).replace("/", sep);
+        Path target = root.resolve(relative).normalize();
+
+        try {
+            if (Files.isRegularFile(target)) {
+                Files.deleteIfExists(target);
+            }
+        } catch (IOException ignored) { /* ลบไม่ได้ก็ข้าม */ }
+    }
+
+    /** ตรวจชนิด/ขนาดไฟล์แบบเบาๆ */
+    private void validateImage(MultipartFile f) {
+        String ct = f.getContentType();
+        boolean okType = ct != null && (
+                Objects.equals(ct, "image/jpeg") ||
+                Objects.equals(ct, "image/png")  ||
+                Objects.equals(ct, "image/webp")
+        );
+        if (!okType) throw new RuntimeException("อัปโหลดได้เฉพาะไฟล์ .jpg .png .webp");
+        if (f.getSize() > MAX_SIZE) throw new RuntimeException("ไฟล์รูปต้องไม่เกิน 5MB");
     }
 
     private String guessExtension(String originalName) {

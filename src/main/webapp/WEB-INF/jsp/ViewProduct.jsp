@@ -79,7 +79,7 @@
     .price{ font-size:clamp(22px,3vw,34px); color:#059669; font-weight:800 }
     .unit{ font-size:clamp(13px,2.2vw,14px); color:#065f46; }
 
-    /* Alert (กรอบแดง + พื้นแดงอ่อน) */
+    /* Alert */
     .alert-red{ border:2px solid #ef4444; background:#fee2e2; border-radius:16px; }
 
     /* Lightbox */
@@ -119,7 +119,7 @@
         </div>
       </form>
 
-      <!-- Right: Nav + Profile (เดิม) -->
+      <!-- Right: Nav + Profile -->
       <div class="flex items-center gap-3 justify-self-end">
         <c:choose>
           <c:when test="${not empty sessionScope.loggedInUser && sessionScope.loggedInUser.status eq 'FARMER'}">
@@ -294,7 +294,7 @@
     </section>
   </main>
 
-  <!-- ===== แบนเนอร์ความปลอดภัย: กรอบแดง พื้นแดงอ่อน + ปุ่มสีเขียว ===== -->
+  <!-- ===== แบนเนอร์ความปลอดภัย ===== -->
   <section class="container mx-auto px-4 pb-10">
     <div class="alert-red p-4 md:p-6">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -352,6 +352,30 @@
   <!-- Toast -->
   <div id="toast" class="toast">เพิ่มลงตะกร้าแล้ว</div>
 
+  <%-- ===== JSON รูปภาพ (ไม่มีคอมเมนต์ปะปน) ===== --%>
+  <script id="imgData" type="application/json">[
+<c:set var="comma" value=""/>
+<c:if test="${not empty p.img}">
+  <c:set var="u" value="${p.img}"/>
+  <c:choose>
+    <c:when test="${fn:startsWith(u,'http')}"></c:when>
+    <c:when test="${fn:startsWith(u,'/')}"><c:set var="u" value="${ctx}${u}"/></c:when>
+    <c:otherwise><c:set var="u" value="${ctx}/uploads/${u}"/></c:otherwise>
+  </c:choose>
+  ${comma}"<c:out value='${u}'/>"<c:set var="comma" value=","/>
+</c:if>
+
+<c:forEach var="im" items="${imgs}">
+  <c:set var="u" value="${im.imageUrl}"/>
+  <c:choose>
+    <c:when test="${fn:startsWith(u,'http')}"></c:when>
+    <c:when test="${fn:startsWith(u,'/')}"><c:set var="u" value="${ctx}${u}"/></c:when>
+    <c:otherwise><c:set var="u" value="${ctx}/uploads/${u}"/></c:otherwise>
+  </c:choose>
+  ${comma}"<c:out value='${u}'/>"<c:set var="comma" value=","/>
+</c:forEach>
+]</script>
+
   <!-- =============== Scripts =============== -->
   <script>
     // โปรไฟล์ดรอปดาวน์
@@ -359,25 +383,17 @@
     document.getElementById('profileBtn')?.addEventListener('click', toggleProfileMenu);
     document.addEventListener('click',(e)=>{ const b=document.getElementById('profileBtn'), m=document.getElementById('profileMenu'); if(!b||!m) return; if(!b.contains(e.target) && !m.contains(e.target)) m.classList.add('hidden'); });
 
-    // ===== รวมรูปจาก server =====
-    const ctx='${ctx}';
-    const IMAGES=[];
-    <c:if test="${not empty p.img}">
-      <c:choose>
-        <c:when test="${fn:startsWith(p.img,'http')}">IMAGES.push('${fn:escapeXml(p.img)}');</c:when>
-        <c:when test="${fn:startsWith(p.img,'/uploads/')}">IMAGES.push('${fn:escapeXml(ctx)}${fn:escapeXml(p.img)}');</c:when>
-        <c:otherwise>IMAGES.push('${fn:escapeXml(ctx)}/uploads/${fn:escapeXml(p.img)}');</c:otherwise>
-      </c:choose>
-    </c:if>
-    <c:forEach var="im" items="${imgs}">
-      <c:choose>
-        <c:when test="${fn:startsWith(im.imageUrl,'http')}">IMAGES.push('${fn:escapeXml(im.imageUrl)}');</c:when>
-        <c:when test="${fn:startsWith(im.imageUrl,'/uploads/')}">IMAGES.push('${fn:escapeXml(ctx)}${fn:escapeXml(im.imageUrl)}');</c:when>
-        <c:otherwise>IMAGES.push('${fn:escapeXml(ctx)}/uploads/${fn:escapeXml(im.imageUrl)}');</c:otherwise>
-      </c:choose>
-    </c:forEach>
-    const PICS=Array.from(new Set(IMAGES));
-    if(!PICS.length) PICS.push('https://via.placeholder.com/800x600?text=No+Image');
+    // ===== รูปภาพจาก JSON (กันพัง) =====
+    let PICS = [];
+    try {
+      const raw = document.getElementById('imgData')?.textContent?.trim() || '[]';
+      PICS = JSON.parse(raw);
+    } catch (e) {
+      console.warn('imgData parse failed:', e);
+      PICS = [];
+    }
+    PICS = PICS.filter(u => typeof u === 'string' && u.trim().length > 0);
+    if (!PICS.length) PICS = ['https://via.placeholder.com/800x600?text=No+Image'];
 
     // ===== DOM =====
     const hero = document.getElementById('hero');
@@ -452,7 +468,7 @@
     document.getElementById('lbNext').addEventListener('click',()=>{ cur=(cur+1)%PICS.length; setLB(PICS[cur],true); });
     function setLB(url,reset){ lbImg.src=url; if(reset){ scale=1; tx=ty=0; apply(); } }
     document.getElementById('zoomBtn').addEventListener('click',()=>openLB(cur));
-    big.addEventListener('click',()=>openLB(cur));
+    document.getElementById('bigImg').addEventListener('click',()=>openLB(cur));
     lb.addEventListener('click',e=>{ if(e.target===lb) closeLB(); });
 
     // zoom/pan

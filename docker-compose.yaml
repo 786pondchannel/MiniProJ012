@@ -1,46 +1,71 @@
+version: "3.9"
+
 services:
-  # MySQL Database Service
+  # === MySQL Database Service ===
   mysql:
     image: mysql:8.0
     container_name: preorder-mysql
     restart: always
     environment:
+      TZ: Asia/Bangkok
       MYSQL_ROOT_PASSWORD: 1234
       MYSQL_DATABASE: preorder_farm
       MYSQL_USER: user1
       MYSQL_PASSWORD: 1234
+    command:
+      # เซ็ต charset/collation + timezone ให้ตรงกับโปรเจค
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - --default-time-zone=+07:00
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+      # สคริปต์เริ่มต้น (เช่น seed, index, FK) ถ้ามีไฟล์ .sql/.sh ใส่ไว้ที่นี่
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     networks:
       - preorder-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p1234"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
 
-  # Tomcat Application Server
+  # === Tomcat Application Server ===
   tomcat:
     image: tomcat:10.1-jdk17
     container_name: preorder-tomcat
     restart: always
-    ports:
-      - "8081:8080"
-      - "8000:8000"
-    volumes:
-      - ./target/MiniProJ01.war:/usr/local/tomcat/webapps/preorder.war
     environment:
-      # bind JPDA to all interfaces so host debugger can attach
+      TZ: Asia/Bangkok
+
+      # Spring/แอปจะอ่าน path รูปจากตัวแปรนี้ (สอดคล้องกับโค้ด)
+      UPLOAD_DIR: /app/uploads
+
+      # ดีบัก (เลือกใช้ได้)
       JPDA_ADDRESS: "0.0.0.0:8000"
       JPDA_TRANSPORT: "dt_socket"
-      # suspend JVM until debugger attaches (useful for diagnosing attach issues)
-      #JPDA_SUSPEND: "y"
-      CATALINA_OPTS: "-Dspring.profiles.active=docker -Xmx512m -Xms256m"
+
+      # ตั้งค่าภาษา/เอ็นโค้ดดิ้ง JVM (กันปัญหา UTF-8)
+      JAVA_TOOL_OPTIONS: "-Dfile.encoding=UTF-8"
+
+      # (ไม่บังคับใช้ หากโค้ดคุณอ่านค่าคงที่อยู่แล้ว)
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: preorder_farm
       DB_USER: root
       DB_PASSWORD: 1234
+    ports:
+      - "8081:8080"   # เปิดเว็บที่ http://localhost:8081/preorder/
+      - "8000:8000"   # remote debug (ถ้าต้องการ)
+    volumes:
+      # ใส่ WAR ที่ build แล้ว (ชื่อไฟล์ต้องตรงกับไฟล์จริงใน ./target)
+      - ./target/MiniProJ01.war:/usr/local/tomcat/webapps/preorder.war:ro
+
+      # ✅ โฟลเดอร์อัปโหลด แชร์กับโฮสต์ (เก็บรูปถาวร)
+      - ./uploads:/app/uploads
+
+      # (ตัวเลือก) ถ้าอยากปรับขนาดอัปโหลดของ Tomcat ให้มากขึ้น
+      # ให้เตรียม conf/server.xml ของคุณเองแล้ว mount ทับ (ตัวอย่างคอมเมนต์ไว้)
+      # - ./docker/tomcat/server.xml:/usr/local/tomcat/conf/server.xml:ro
     entrypoint: ["catalina.sh", "jpda", "run"]
     depends_on:
       mysql:
@@ -48,31 +73,36 @@ services:
     networks:
       - preorder-network
 
-  # phpMyAdmin for Database Management (Optional)
+  # === phpMyAdmin ===
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
+    image: phpmyadmin/phpmyadmin:5.2
     container_name: preorder-phpmyadmin
     restart: always
     environment:
+      TZ: Asia/Bangkok
       PMA_HOST: mysql
       PMA_PORT: 3306
       PMA_USER: user1
       PMA_PASSWORD: 1234
       MYSQL_ROOT_PASSWORD: 1234
+      # แก้หน้าใหญ่ ๆ ไม่สะดุดเวลา import
+      UPLOAD_LIMIT: 512M
+      MEMORY_LIMIT: 512M
+      MAX_EXECUTION_TIME: 600
     ports:
-      - "8082:80"
+      - "8082:80"     # http://localhost:8082
     depends_on:
       mysql:
         condition: service_healthy
     networks:
       - preorder-network
 
-# Named volumes
+# === Named volumes ===
 volumes:
   mysql_data:
     driver: local
 
-# Networks
+# === Networks ===
 networks:
   preorder-network:
     driver: bridge

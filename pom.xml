@@ -30,6 +30,10 @@
 
     <slf4j.version>2.0.6</slf4j.version>
     <logback.version>1.4.5</logback.version>
+
+    <!-- เพิ่มเวอร์ชัน lib อัปโหลด -->
+    <commons.fileupload.version>1.5</commons.fileupload.version>
+    <commons.io.version>2.15.1</commons.io.version>
   </properties>
 
   <build>
@@ -161,7 +165,7 @@
       <version>${jta.version}</version>
     </dependency>
 
-    <!-- Connection Pool (ถ้าจะใช้ Hikari ผ่าน Spring config ค่อยเพิ่ม) -->
+    <!-- Connection Pool -->
     <dependency>
       <groupId>com.zaxxer</groupId>
       <artifactId>HikariCP</artifactId>
@@ -193,6 +197,18 @@
       <artifactId>jakarta.servlet-api</artifactId>
       <version>6.0.0</version>
       <scope>provided</scope>
+    </dependency>
+
+    <!-- Upload libs (แก้ปัญหา multipart โดยไม่ต้องมี web.xml/AppInitializer) -->
+    <dependency>
+      <groupId>commons-fileupload</groupId>
+      <artifactId>commons-fileupload</artifactId>
+      <version>${commons.fileupload.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>${commons.io.version}</version>
     </dependency>
 
     <!-- Logging -->

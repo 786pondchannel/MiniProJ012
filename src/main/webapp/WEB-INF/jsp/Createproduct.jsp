@@ -1,4 +1,4 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>  
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c"  uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
@@ -12,7 +12,7 @@
 <c:set var="p" value="${product}" />
 <c:set var="images" value="${images}" />
 <c:set var="fe" value="${fieldErrors}" /> <!-- Map<String,String> field error (ถ้ามี) -->
-<c:set var="errList" value="${errors}" />  <!-- List<String> error รวม (ถ้ามี) -->
+<c:set var="errList" value="${errors}" />  <!-- List<String> errorรวม (ถ้ามี) -->
 
 <!DOCTYPE html>
 <html lang="th">
@@ -46,28 +46,54 @@
     .igroup{ position:relative }
     .igroup .i{ position:absolute; left:.75rem; top:50%; transform:translateY(-50%); color:#9ca3af }
     .igroup input,.igroup textarea,.igroup select{ padding-left:2.25rem }
+
     .dropzone{ border:2px dashed #d1d5db; border-radius:14px; transition:.2s }
     .dropzone.active{ border-color:#10b981; background:#ecfdf5 }
     .thumb{ position:relative; border-radius:12px; overflow:hidden; border:1px solid #e5e7eb }
     .thumb img{ display:block; width:100%; height:100%; object-fit:cover }
     .thumb-btn{ position:absolute; top:6px; right:6px; background:rgba(0,0,0,.6); color:#fff; border-radius:8px; padding:4px 8px; font-size:.75rem }
+
     .btn{ display:inline-flex; align-items:center; gap:.55rem; padding:.7rem 1.1rem; border-radius:.8rem; font-weight:600 }
     .btn-save{ position:relative; overflow:hidden; color:#fff; background:#16a34a }
     .btn-save:hover{ filter:brightness(1.05) }
     .btn-save:after{ content:""; position:absolute; inset:0; transform:translateX(-120%) skewX(-15deg);
       background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent); transition:transform .6s }
     .btn-save:hover:after{ transform:translateX(120%) skewX(-15deg) }
+
     .footer-dark{ background:#000; color:#e5e7eb }
     .footer-dark a{ color:#e5e7eb }
     .footer-dark a:hover{ color:#a7f3d0 }
+
+    /* ===== Alerts ===== */
     .alert{ border-radius:14px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start; box-shadow:0 6px 16px rgba(2,8,23,.08) }
     .alert-error{ background:#fef2f2; border:1px solid #fecaca; color:#991b1b; border-left-width:6px; border-left-color:#f87171 }
     .alert-success{ background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-left-width:6px; border-left-color:#34d399 }
     .alert-info{ background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-left-width:6px; border-left-color:#60a5fa }
+
+    /* ===== Modal + confetti ===== */
+    @keyframes overlayIn { from{opacity:0} to{opacity:1} }
+    @keyframes popIn { 0%{transform:translateY(8px) scale(.96);opacity:0} 100%{transform:none;opacity:1} }
+    @keyframes floatUp { 0%{transform:translateY(8px);opacity:0} 100%{transform:none;opacity:1} }
+    @keyframes barOut { from{transform:scaleX(1)} to{transform:scaleX(0)} }
+    .animate-overlay{ animation: overlayIn .25s ease-out both }
+    .animate-pop{ animation: popIn .35s cubic-bezier(.16,1,.3,1) both }
+    .animate-float{ animation: floatUp .5s .08s ease-out both }
+    .animate-bar{ transform-origin:left; animation: barOut 2.5s linear forwards }
+    .btn-ghost{ background:#f1f5f9 }
+    .btn-ghost:hover{ background:#e2e8f0 }
+    .confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .confetti i{position:absolute;width:10px;height:14px;opacity:0.95;border-radius:2px;animation:drop linear forwards}
+    @keyframes drop{ 0%{transform:translateY(-20vh) rotate(0deg); opacity:.95}
+                     100%{transform:translateY(80vh) rotate(360deg); opacity:0} }
   </style>
 </head>
 
-<body class="page-wrap min-h-screen">
+<body
+  class="page-wrap min-h-screen"
+  data-is-edit="<c:out value='${not empty p.productId}'/>"
+  data-updated-param="<c:out value='${param.updated}'/>"
+  data-just-updated="<c:out value='${(not empty requestScope.justUpdated) and requestScope.justUpdated}'/>"
+>
   <!-- ================= Header ================= -->
   <header class="header shadow-md text-white">
     <div class="container mx-auto px-6 py-3 topbar">
@@ -227,7 +253,7 @@
 
   <!-- ================= Main ================= -->
   <main class="container mx-auto px-4 py-8 grid xl:grid-cols-3 gap-8">
-    <!-- ฟอร์มหลัก ครอบทั้งรูป + ข้อมูล -->
+    <!-- ฟอร์มหลัก: รวมอัปโหลด + ข้อมูล -->
     <div class="xl:col-span-2">
       <div class="card p-6">
         <c:choose>
@@ -239,7 +265,7 @@
           </c:otherwise>
         </c:choose>
 
-        <!-- ===== Normalize สถานะจากค่าที่เคยกรอก ===== -->
+        <!-- ===== Normalize สถานะ ===== -->
         <c:set var="stRaw"  value="${empty p.status ? '' : p.status}" />
         <c:set var="stNorm" value="${fn:trim(stRaw)}" />
         <c:set var="statusCompact" value="${stNorm}" />
@@ -256,13 +282,7 @@
           <c:set var="statusCompact" value="พรีออเดอร์ได้แล้ว"/>
         </c:if>
 
-        <!-- stock ปัจจุบัน -->
-        <c:set var="stockInt" value="${empty p.stock ? 0 : p.stock}" />
-
-        <!-- ===== กติกาใหม่ =====
-             availability(true) เมื่อสถานะเป็น พรีออเดอร์ได้แล้ว/พร้อมสั่งซื้อแล้ว (ไม่ขึ้นกับ stock)
-             แต่ถ้า stock == 0 ให้ "แสดงผล" ว่า ปิดการขายอยู่ (เฉพาะ UI)
-        -->
+        <!-- กติกาใหม่: availability = 1 เมื่อสถานะเป็น "พรีออเดอร์ได้แล้ว" หรือ "พร้อมสั่งซื้อแล้ว" -->
         <c:set var="derivedAvailability"
                value="${(statusCompact == 'พรีออเดอร์ได้แล้ว') or (statusCompact == 'พร้อมสั่งซื้อแล้ว')}" />
 
@@ -271,18 +291,16 @@
           <input type="hidden" name="img" value="${p.img}" />
           <input type="hidden" name="availability" id="availabilityHidden" value="${derivedAvailability}" />
 
-          <!-- แถบหัวฟอร์ม: พรีวิวโหมดขาย -->
+          <!-- แถบอธิบายกติกา -->
           <div class="alert alert-info items-center">
             <i class="fa-solid fa-circle-info mt-0.5"></i>
             <div class="flex-1">
-              กติกา: <b>“พรีออเดอร์ได้แล้ว/พร้อมสั่งซื้อแล้ว” = เปิดขาย</b> (availability=1) <b>แต่ถ้า Stock=0 จะแสดงว่า “ปิดการขายอยู่”</b>
+              <b>กติกา:</b> “พรีออเดอร์ได้แล้ว/พร้อมสั่งซื้อแล้ว” = เปิดขาย (availability=1) <b>แต่ถ้า Stock=0 จะแสดงเป็น “ปิดการขายอยู่”</b>
             </div>
-            <span id="saleModePreview" class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-gray-50 text-gray-700 border-gray-200">
-              โหมดการขาย: -
-            </span>
+            <span id="saleModePreview" class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border bg-gray-50 text-gray-700 border-gray-200">โหมดการขาย: -</span>
           </div>
 
-          <!-- อัปโหลดรูป (อยู่ในฟอร์มแน่นอน เพื่อให้ส่งไฟล์ได้) -->
+          <!-- อัปโหลดรูป -->
           <div class="card p-6">
             <div class="flex items-start justify-between">
               <div>
@@ -298,9 +316,7 @@
               <label for="imageFiles" class="inline-flex items-center gap-2 px-3 py-2 rounded border cursor-pointer bg-white hover:bg-gray-50">
                 <i class="fa-solid fa-upload"></i> เลือกรูปหลายรูป
               </label>
-              <!-- อยู่ในฟอร์ม + มี name + enctype ถูกต้อง -->
-              <input id="imageFiles" name="imageFiles" type="file"
-                     accept="image/png,image/jpeg,image/webp" class="hidden" multiple>
+              <input id="imageFiles" name="imageFiles" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" multiple>
 
               <div id="imgDrop" class="dropzone mt-3 p-5 text-center text-sm text-gray-600">
                 หรือลากรูปมาวางที่นี่
@@ -308,7 +324,7 @@
               <div id="limitMsg" class="text-xs text-red-600 mt-2 hidden">ถึงจำนวนสูงสุด 10 รูปแล้ว</div>
             </div>
 
-            <!-- รูปเดิม (ตอนแก้ไข) -->
+            <!-- รูปเดิม (ติ๊กเพื่อลบ) -->
             <c:if test="${not empty p.productId}">
               <c:catch var="imgErr">
                 <c:if test="${not empty images}">
@@ -505,14 +521,15 @@
       </div>
     </div>
 
-    <!-- พรีวิวรูปใหม่ -->
+    <!-- พรีวิว (ขวา) -->
     <div class="card p-6">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-gray-700 font-semibold">พรีวิวรูปใหม่</div>
-        <div class="text-xs text-gray-500">คลิกรูปเพื่อลบ | ลาก-วางได้</div>
+        <div class="text-gray-700 font-semibold">พรีวิวรูป (รวมรูปเดิม+ใหม่)</div>
+        <div class="text-xs text-gray-500">คลิกรูปใหม่เพื่อลบ | ลาก-วางเพิ่มได้</div>
       </div>
+
       <div id="carousel" class="relative aspect-[4/3] bg-white border rounded-xl flex items-center justify-center overflow-hidden">
-        <img id="bigPreview" src="https://via.placeholder.com/640x480?text=เลือกรูป" class="max-w-full max-h-full object-contain" alt="">
+        <img id="bigPreview" src="https://via.placeholder.com/640x480?text=กำลังโหลดรูป..." class="max-w-full max-h-full object-contain" alt="">
         <button id="prevBtn" type="button" class="absolute left-2 top-1/2 -translate-y-1/2 bg-white/85 hover:bg-white shadow rounded-full w-9 h-9 flex items-center justify-center">
           <i class="fa-solid fa-chevron-left"></i>
         </button>
@@ -520,12 +537,15 @@
           <i class="fa-solid fa-chevron-right"></i>
         </button>
       </div>
+
       <div id="thumbs" class="grid grid-cols-5 gap-2 mt-3"></div>
+
       <div class="mt-4 text-sm text-gray-600">
         <i class="fa-regular fa-lightbulb mr-1"></i> รูปแรกจะถูกใช้เป็นรูปหน้าปกของสินค้าอัตโนมัติ
       </div>
     </div>
   </main>
+  <!-- ================= /Main ================= -->
 
   <!-- ================= Footer ================= -->
   <footer class="footer-dark">
@@ -552,9 +572,79 @@
     </div>
   </footer>
 
+  <!-- ===== Success Modal (โชว์เมื่ออัปเดตสำเร็จ) ===== -->
+  <div id="updateModal" class="fixed inset-0 z-[60] hidden items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+    <div class="absolute inset-0 backdrop-blur-[2px] bg-black/45 animate-overlay"></div>
+
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-[min(92vw,520px)] animate-pop">
+      <div id="confetti" class="confetti"></div>
+
+      <div class="flex items-start gap-4 animate-float">
+        <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-check text-emerald-600 text-2xl" aria-hidden="true"></i>
+        </div>
+        <div class="flex-1">
+          <div id="updateTitle" class="text-xl font-bold">อัปเดตสินค้าสำเร็จ 🎉</div>
+          <div class="text-sm text-gray-600 mt-1">
+            จะพากลับไปที่รายการสินค้าของฉันภายใน <span id="countdown">3</span> วินาที
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-5 h-2 bg-gray-100 rounded-full overflow-hidden" aria-hidden="true">
+        <div class="h-full bg-emerald-500 animate-bar"></div>
+      </div>
+
+      <div class="mt-5 flex items-center justify-end gap-2">
+        <button type="button" class="btn btn-ghost rounded-lg"
+                onclick="document.getElementById('updateModal').classList.add('hidden')">
+          อยู่หน้านี้ต่อ
+        </button>
+        <a id="goNowBtn" href="${ctx}/preorder/product/list/Farmer"
+           class="btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow">
+          กลับตอนนี้
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== JSON (รูปเดิมจากฝั่งเซิร์ฟเวอร์) นอก <script> หลัก เพื่อกัน LSP แจ้งเตือน ========== -->
+  <script id="existingUrlsData" type="application/json">
+[
+  <c:choose>
+    <c:when test="${not empty images}">
+      <c:forEach var="im" items="${images}" varStatus="s">
+        <c:set var="imgUrl" value="" />
+        <c:choose>
+          <c:when test="${not empty im.imageUrl and fn:startsWith(im.imageUrl,'http')}">
+            <c:set var="imgUrl" value="${im.imageUrl}" />
+          </c:when>
+          <c:when test="${not empty im.imageUrl and fn:startsWith(im.imageUrl,'/uploads/')}">
+            <c:set var="imgUrl" value="${ctx}${im.imageUrl}" />
+          </c:when>
+          <c:otherwise>
+            <c:set var="imgUrl" value="${ctx}/uploads/${im.imageUrl}" />
+          </c:otherwise>
+        </c:choose>
+        "<c:out value='${imgUrl}'/>"<c:if test="${!s.last}">,</c:if>
+      </c:forEach>
+    </c:when>
+    <c:when test="${empty images and not empty p.img}">
+      <c:set var="coverUrl" value="" />
+      <c:choose>
+        <c:when test="${fn:startsWith(p.img,'http')}"><c:set var="coverUrl" value="${p.img}" /></c:when>
+        <c:when test="${fn:startsWith(p.img,'/uploads/')}"><c:set var="coverUrl" value="${ctx}${p.img}" /></c:when>
+        <c:otherwise><c:set var="coverUrl" value="${ctx}/uploads/${p.img}" /></c:otherwise>
+      </c:choose>
+      "<c:out value='${coverUrl}'/>"
+    </c:when>
+  </c:choose>
+]
+  </script>
+
   <!-- ================= Scripts ================= -->
   <script>
-    // ===== โปรไฟล์ดรอปดาวน์ =====
+    /* ===== โปรไฟล์ดรอปดาวน์ ===== */
     function toggleProfileMenu(e){
       e && e.stopPropagation();
       const m = document.getElementById('profileMenu');
@@ -567,19 +657,12 @@
       const b=document.getElementById('profileBtn'), m=document.getElementById('profileMenu');
       if(!b||!m) return;
       if(!b.contains(e.target) && !m.contains(e.target)){
-        m.classList.add('hidden');
-        b.setAttribute('aria-expanded','false');
+        m.classList.add('hidden'); b.setAttribute('aria-expanded','false');
       }
     });
-    document.addEventListener('keydown',(e)=>{
-      if(e.key==='Escape'){
-        const b=document.getElementById('profileBtn'), m=document.getElementById('profileMenu');
-        if(m) m.classList.add('hidden');
-        if(b) b.setAttribute('aria-expanded','false');
-      }
-    });
+    document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ const m=document.getElementById('profileMenu'); const b=document.getElementById('profileBtn'); if(m) m.classList.add('hidden'); if(b) b.setAttribute('aria-expanded','false'); }});
 
-    // ===== Flash helpers =====
+    /* ===== Flash helpers ===== */
     function dismiss(id){ const el=document.getElementById(id); if(el){ el.style.display='none'; } }
     function toggleErrorDetails(){
       const box=document.getElementById('errorDetails');
@@ -588,15 +671,14 @@
     function copyErrors(){
       const box=document.getElementById('errorDetails'); if(!box) return;
       const items=[...box.querySelectorAll('li')].map(li=>li.textContent.trim()).filter(Boolean);
-      const text = items.join('\n');
-      if(!text) return;
+      const text = items.join('\n'); if(!text) return;
       navigator.clipboard.writeText(text).then(()=>{
         const btn = box.querySelector('button'); if(btn){ btn.textContent='คัดลอกแล้ว!'; setTimeout(()=>btn.textContent='คัดลอกทั้งหมด',1200); }
       }).catch(()=>{ alert('คัดลอกไม่สำเร็จ'); });
     }
     setTimeout(()=>{ const ok=document.getElementById('flashOk'); if(ok){ ok.style.display='none'; } }, 4000);
 
-    // ===== Upload preview logic =====
+    /* ===== Preview รูป (รวมรูปเดิม + รูปใหม่) ===== */
     const input   = document.getElementById('imageFiles');
     const drop    = document.getElementById('imgDrop');
     const thumbs  = document.getElementById('thumbs');
@@ -607,8 +689,19 @@
     const limitMsg= document.getElementById('limitMsg');
 
     const MAX = 5*1024*1024, ALLOWED = ['image/png','image/jpeg','image/webp'], LIMIT=10;
-    let files = [];
+    let newFiles = [];
+    let existingUrls = [];
     let cur = 0;
+
+    // ดึง URL รูปเดิมจากบล็อก JSON (ไม่มี JSTL ใน JS)
+    (function injectExisting(){
+      try{
+        const node = document.getElementById('existingUrlsData');
+        const raw = (node && node.textContent || '[]').trim();
+        const arr = JSON.parse(raw || '[]');
+        if(Array.isArray(arr) && arr.length){ existingUrls.push(...arr); }
+      }catch(e){ /* ignore */ }
+    })();
 
     function toastLimit(){ if(limitMsg){ limitMsg.classList.remove('hidden'); setTimeout(()=>limitMsg.classList.add('hidden'), 1600); } }
     function validate(f){
@@ -617,85 +710,96 @@
       return '';
     }
     function rebuildInputFromFiles(){
-      // ใส่กลับเข้า input เพื่อส่งไปกับฟอร์ม
+      if(!input) return;
       const dt = new DataTransfer();
-      files.forEach(f=>dt.items.add(f));
+      newFiles.forEach(f=>dt.items.add(f));
       input.files = dt.files;
-      if(countNow) countNow.textContent = String(files.length);
+      if(countNow) countNow.textContent = String(newFiles.length);
+    }
+    function listDisplayItems(){
+      const olds = existingUrls.map(u => ({type:'old', url: u}));
+      const news = newFiles.map((f,idx) => ({type:'new', file: f, idx}));
+      return olds.concat(news);
     }
     function render(){
-      if(files.length === 0){
-        big.src = 'https://via.placeholder.com/640x480?text=เลือกรูป'; cur = 0;
+      const items = listDisplayItems();
+      if(items.length === 0){
+        if(big) big.src = 'https://via.placeholder.com/640x480?text=เลือกรูป';
+        cur = 0;
       } else {
-        if(cur >= files.length) cur = files.length-1;
-        const url = URL.createObjectURL(files[cur]);
-        big.src = url;
-        setTimeout(()=>URL.revokeObjectURL(url), 1500);
+        if(cur >= items.length) cur = items.length-1;
+        const it = items[cur];
+        if(it.type === 'old'){
+          if(big) big.src = it.url;
+        } else {
+          const url = URL.createObjectURL(it.file);
+          if(big) big.src = url;
+          setTimeout(()=>URL.revokeObjectURL(url), 1500);
+        }
       }
+
+      if(!thumbs) return;
       thumbs.innerHTML = '';
-      files.forEach((f,idx)=>{
+      listDisplayItems().forEach((it,idx)=>{
         const wrap = document.createElement('div');
         wrap.className = 'thumb h-20 cursor-pointer';
         const img = document.createElement('img');
-        const url = URL.createObjectURL(f);
-        img.src = url;
-        img.onload = ()=>URL.revokeObjectURL(url);
+
+        if(it.type === 'old'){
+          img.src = it.url;
+        } else {
+          const u = URL.createObjectURL(it.file);
+          img.src = u;
+          img.onload = ()=>URL.revokeObjectURL(u);
+          const del = document.createElement('button');
+          del.className = 'thumb-btn'; del.textContent = 'ลบ';
+          del.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); removeNewAt(it.idx); });
+          wrap.appendChild(del);
+        }
+
         wrap.appendChild(img);
-
-        const del = document.createElement('button');
-        del.className = 'thumb-btn';
-        del.textContent = 'ลบ';
-        del.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); removeAt(idx); });
-        wrap.appendChild(del);
-
         wrap.addEventListener('click', ()=>{ cur = idx; render(); });
         thumbs.appendChild(wrap);
       });
     }
     function pushFiles(list){
       for(const f of list){
-        if(files.length >= LIMIT){ toastLimit(); break; }
+        if(newFiles.length >= LIMIT){ toastLimit(); break; }
         const err = validate(f);
         if(err){ alert(err + ': ' + (f.name||'')); continue; }
-        files.push(f);
+        newFiles.push(f);
       }
       rebuildInputFromFiles();
       render();
     }
-    function removeAt(i){
-      files.splice(i,1);
+    function removeNewAt(i){
+      newFiles.splice(i,1);
       rebuildInputFromFiles();
       render();
     }
     input && input.addEventListener('change', ()=>{
       const picked = Array.from(input.files||[]);
-      // รีเซ็ตก่อนรวม (สำหรับเลือกเพิ่มครั้งต่อไป)
-      files = files.concat(picked);
-      rebuildInputFromFiles();
-      render();
-      // ไม่ล้าง input เพื่อให้ยังส่งไฟล์ได้
+      input.value = '';
+      pushFiles(picked);
     });
     if(drop){
       ['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); e.stopPropagation(); drop.classList.add('active');}));
       ['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault(); e.stopPropagation(); drop.classList.remove('active');}));
       drop.addEventListener('drop', e=>{
         const dt=e.dataTransfer; if(!dt||!dt.files||!dt.files.length) return;
-        pushFiles(Array.from(dt.files));
+        pushFiles(dt.files);
       });
     }
-    prevBtn && prevBtn.addEventListener('click', ()=>{ if(files.length){ cur = (cur-1+files.length)%files.length; render(); }});
-    nextBtn && nextBtn.addEventListener('click', ()=>{ if(files.length){ cur = (cur+1)%files.length; render(); }});
+    prevBtn && prevBtn.addEventListener('click', ()=>{ const items = listDisplayItems(); if(items.length){ cur = (cur-1+items.length)%items.length; render(); }});
+    nextBtn && nextBtn.addEventListener('click', ()=>{ const items = listDisplayItems(); if(items.length){ cur = (cur+1)%items.length; render(); }});
 
-    // ===== โหมดการขาย & availability (UI แยกจากค่า submit) =====
+    /* ===== โหมดการขาย + hidden availability ===== */
     const statusSel = document.getElementById('status');
     const stockInput = document.getElementById('stockQty');
     const saleModePreview = document.getElementById('saleModePreview');
     const availabilityHidden = document.getElementById('availabilityHidden');
 
-    function computeAvailability(st){
-      // ตามกติกาใหม่: true เมื่อเป็น 2 สถานะนี้ ไม่สน stock
-      return (st === 'พรีออเดอร์ได้แล้ว') || (st === 'พร้อมสั่งซื้อแล้ว');
-    }
+    function computeAvailability(st){ return (st === 'พรีออเดอร์ได้แล้ว') || (st === 'พร้อมสั่งซื้อแล้ว'); }
     function paintSaleMode(){
       const st = statusSel ? statusSel.value : '';
       const stock = stockInput && stockInput.value ? parseInt(stockInput.value,10) : 0;
@@ -727,26 +831,54 @@
     stockInput && stockInput.addEventListener('input', paintSaleMode);
     paintSaleMode();
 
-    // ===== Validate ก่อน submit =====
+    // Validate ก่อน submit
     document.getElementById('productForm').addEventListener('submit', (e)=>{
       rebuildInputFromFiles();
       const price = document.getElementById('price');
       const stock = document.getElementById('stockQty');
       if(price && (+price.value < 0 || +price.value > 9999999)){ e.preventDefault(); alert('ราคาต้องอยู่ในช่วง 0 - 9,999,999'); return; }
       if(stock && (+stock.value < 0 || +stock.value > 999999)){ e.preventDefault(); alert('สต๊อกต้องอยู่ในช่วง 0 - 999,999'); return; }
-      paintSaleMode(); // sync availability hidden ล่าสุด
+      paintSaleMode();
     });
-  </script>
 
-  <!-- DEBUG (ลบคอมเมนต์นี้ได้)
-  <div style="position:fixed;inset:auto 10px 10px auto;background:#ecfccb;border:1px solid #a3e635;padding:.5rem 1rem;z-index:9999">
-    ctx=<c:out value='${pageContext.request.contextPath}'/> ,
-    p.id=<c:out value='${p.productId}' default='-'/> ,
-    cats=<c:out value='${fn:length(categories)}' default='null'/> ,
-    imgs=<c:out value='${fn:length(images)}' default='null'/> ,
-    status=<c:out value='${statusCompact}'/> ,
-    avail=<c:out value='${derivedAvailability}'/>
-  </div>
-  -->
+    /* ===== Success Modal on update ===== */
+    const isEditMode     = (document.body.dataset.isEdit === 'true');
+    const updatedParam   = (document.body.dataset.updatedParam === '1' || document.body.dataset.updatedParam === 'true');
+    const justUpdatedAttr= (document.body.dataset.justUpdated === 'true');
+    const ABS_REDIRECT_URL = `${location.origin}${'${ctx}'}/preorder/product/list/Farmer`.replace('${ctx}', '<c:out value="${ctx}"/>');
+
+    function spawnConfetti(n=80){
+      const box = document.getElementById('confetti'); if(!box) return;
+      box.innerHTML = '';
+      const colors = ['#34d399','#10b981','#059669','#fde047','#60a5fa','#f472b6','#f87171'];
+      for(let i=0;i<n;i++){
+        const el = document.createElement('i');
+        el.style.left = (Math.random()*100)+'%';
+        el.style.animationDuration = (1.2 + Math.random()*1.3)+'s';
+        el.style.animationDelay = (Math.random()*.15)+'s';
+        el.style.background = colors[Math.floor(Math.random()*colors.length)];
+        el.style.transform = `translateY(-20vh) rotate(${Math.random()*360}deg)`;
+        box.appendChild(el);
+      }
+      setTimeout(()=>{ box.innerHTML=''; }, 1800);
+    }
+    function openSuccessModal(){
+      const modal = document.getElementById('updateModal');
+      const cd = document.getElementById('countdown');
+      const goBtn = document.getElementById('goNowBtn');
+      if(!modal) return;
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      if(goBtn) goBtn.setAttribute('href', ABS_REDIRECT_URL);
+      spawnConfetti();
+
+      let left = 3;
+      const tick = setInterval(()=>{ left = Math.max(0,left-1); if(cd) cd.textContent = String(left); if(left===0){ clearInterval(tick);} }, 1000);
+      setTimeout(()=>{ window.location.href = ABS_REDIRECT_URL; }, 2500);
+    }
+    if (isEditMode && (updatedParam || justUpdatedAttr)) { openSuccessModal(); }
+
+    // เริ่มต้น
+    render();
+  </script>
 </body>
 </html>

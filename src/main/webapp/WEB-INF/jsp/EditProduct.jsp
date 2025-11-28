@@ -1,4 +1,4 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>  
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c"  uri="jakarta.tags.core" %>
 <%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
@@ -73,19 +73,34 @@
     .alert-success{ background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46; border-left-width:6px; border-left-color:#34d399 }
     .alert-info{ background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-left-width:6px; border-left-color:#60a5fa }
 
-    /* ===== Update modal animation ===== */
+    /* ===== Pop-up (success) – glam edition ===== */
     @keyframes overlayIn { from{opacity:0} to{opacity:1} }
-    @keyframes popIn { 0%{transform:scale(.95);opacity:0} 100%{transform:scale(1);opacity:1} }
+    @keyframes popIn { 0%{transform:translateY(8px) scale(.96);opacity:0} 100%{transform:none;opacity:1} }
+    @keyframes floatUp { 0%{transform:translateY(8px);opacity:.0} 100%{transform:none;opacity:1} }
     @keyframes barOut { from{transform:scaleX(1)} to{transform:scaleX(0)} }
     .animate-overlay{ animation: overlayIn .25s ease-out both }
-    .animate-pop{ animation: popIn .35s ease-out both }
-    .animate-bar{ transform-origin:left; animation: barOut 2.2s linear forwards }
+    .animate-pop{ animation: popIn .35s cubic-bezier(.16,1,.3,1) both }
+    .animate-float{ animation: floatUp .5s .08s ease-out both }
+    .animate-bar{ transform-origin:left; animation: barOut 2.5s linear forwards }
     .btn-ghost{ background:#f1f5f9 }
     .btn-ghost:hover{ background:#e2e8f0 }
+
+    /* confetti */
+    .confetti{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+    .confetti i{position:absolute;width:10px;height:14px;opacity:0.95;border-radius:2px;animation:drop linear forwards}
+    @keyframes drop{
+      0%{transform:translateY(-20vh) rotate(0deg); opacity:.95}
+      100%{transform:translateY(80vh) rotate(360deg); opacity:0}
+    }
   </style>
 </head>
 
-<body class="page-wrap min-h-screen">
+<body
+  class="page-wrap min-h-screen"
+  data-is-edit="<c:out value='${not empty p.productId}'/>"
+  data-just-updated="<c:out value='${not empty requestScope.justUpdated and requestScope.justUpdated}'/>"
+  data-updated-param="<c:out value='${param.updated}'/>"
+>
   <!-- ================= Header ================= -->
   <header class="header shadow-md text-white">
     <div class="container mx-auto px-6 py-3 topbar">
@@ -155,7 +170,7 @@
 
             <div class="relative">
               <button id="profileBtn" type="button" onclick="toggleProfileMenu(event)"
-                      class="inline-flex items-center ml-2 px-3 py-1 bg-white/20 hover:bg-white/35 backdrop-blur rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-green-300 group"
+                      class="inline-flex items-center ml-2 px-3 py-1 bg-white/20 hover:bg:white/35 backdrop-blur rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-green-300 group"
                       aria-expanded="false" aria-controls="profileMenu">
                 <img src="${avatarUrl}?t=${now.time}" alt="โปรไฟล์"
                      class="h-8 w-8 rounded-full border-2 border-white shadow-md mr-2 object-cover"/>
@@ -238,9 +253,7 @@
                   onclick="copyErrors()">คัดลอกทั้งหมด</button>
         </div>
         <ul class="mt-2 list-disc pl-6 space-y-1">
-          <c:forEach var="t" items="${errList}">
-            <li><c:out value="${t}"/></li>
-          </c:forEach>
+          <c:forEach var="t" items="${errList}"><li><c:out value="${t}"/></li></c:forEach>
         </ul>
       </div>
     </c:if>
@@ -264,7 +277,6 @@
           <label for="imageFiles" class="inline-flex items-center gap-2 px-3 py-2 rounded border cursor-pointer bg-white hover:bg-gray-50">
             <i class="fa-solid fa-upload"></i> เลือกรูปหลายรูป
           </label>
-          <!-- name=imageFiles -> Multipart[] -->
           <input id="imageFiles" name="imageFiles" type="file" accept="image/png,image/jpeg,image/webp" class="hidden" multiple form="productForm">
 
           <div id="imgDrop" class="dropzone mt-3 p-5 text-center text-sm text-gray-600">
@@ -320,7 +332,8 @@
             <c:set var="formAction" value="${ctx}/product/create"/>
           </c:when>
           <c:otherwise>
-            <c:set var="formAction" value="${ctx}/product/update"/>
+            <!-- แก้ไข: ใช้ /edit-product/update ให้ตรงกับ EditProductController -->
+            <c:set var="formAction" value="${ctx}/edit-product/update"/>
           </c:otherwise>
         </c:choose>
 
@@ -329,7 +342,6 @@
         <c:set var="stNorm" value="${fn:trim(stRaw)}" />
         <c:set var="statusCompact" value="${stNorm}" />
 
-        <!-- map คำเก่า -> 4 ค่ามาตรฐานใหม่ -->
         <c:if test="${stNorm == 'กำลังเปิดรับจอง' or stNorm == 'เปิดรับจอง' or stNorm == 'พรีออเดอร์' or stNorm == 'preorder' or stNorm == 'pre-order'}">
           <c:set var="statusCompact" value="พรีออเดอร์ได้แล้ว" />
         </c:if>
@@ -339,22 +351,20 @@
         <c:if test="${stNorm == 'พร้อมส่ง'}">
           <c:set var="statusCompact" value="พร้อมสั่งซื้อแล้ว" />
         </c:if>
-        <!-- fallback ถ้าว่าง -->
         <c:if test="${empty statusCompact}">
           <c:set var="statusCompact" value="พรีออเดอร์ได้แล้ว"/>
         </c:if>
 
-        <!-- คำนวณสต๊อก & availability ที่ได้จากสถานะ -->
         <c:set var="stockInt" value="${empty p.stock ? 0 : p.stock}" />
         <c:set var="derivedAvailability" value="${statusCompact == 'พร้อมสั่งซื้อแล้ว' and stockInt gt 0}" />
 
         <form id="productForm" action="${formAction}" method="post" enctype="multipart/form-data" class="space-y-6">
           <input type="hidden" name="productId" value="${p.productId}" />
           <input type="hidden" name="img" value="${p.img}" />
-          <!-- ส่ง availability แบบคำนวณแล้ว (ถ้าหลังบ้านยังต้องการ) -->
           <input type="hidden" name="availability" id="availabilityHidden" value="${derivedAvailability}" />
+          <!-- แก้ไข: ส่ง back กลับไปที่รายการหลังบันทึก -->
+          <input type="hidden" name="back" value="${empty param.back ? '/product/list/Farmer' : param.back}" />
 
-          <!-- แถบหัวฟอร์ม: แจ้งนโยบาย + พรีวิวโหมดการขาย -->
           <div class="alert alert-info items-center">
             <i class="fa-solid fa-circle-info mt-0.5"></i>
             <div class="flex-1">
@@ -439,13 +449,11 @@
               </c:if>
             </div>
 
-            <!-- ====== สถานะพรีออเดอร์ (4 ค่ามาตรฐาน) ====== -->
+            <!-- สถานะพรีออเดอร์ -->
             <c:set var="statusErr" value="${not empty fe and not empty fe.status}" />
             <div class="md:col-span-2">
               <div class="flex items-center justify-between mb-1">
-                <label for="status" class="block text-sm font-medium text-gray-700">
-                  สถานะพรีออเดอร์
-                </label>
+                <label for="status" class="block text-sm font-medium text-gray-700">สถานะพรีออเดอร์</label>
               </div>
 
               <div class="igroup">
@@ -461,7 +469,6 @@
                 </select>
               </div>
 
-              <!-- Legend -->
               <details class="mt-3 group">
                 <summary class="flex items-center gap-2 cursor-pointer text-sm text-gray-700 select-none">
                   <i class="fa-regular fa-circle-question text-emerald-600"></i>
@@ -470,39 +477,20 @@
                 </summary>
                 <div class="mt-2 grid sm:grid-cols-2 gap-2 text-sm">
                   <div class="p-3 rounded-lg border bg-emerald-50/60 border-emerald-100">
-                    <div class="font-semibold text-emerald-800 flex items-center gap-2">
-                      🌱 พรีออเดอร์ได้แล้ว
-                    </div>
-                    <div class="text-emerald-900/90 mt-1">
-                      เปิดรับจองล่วงหน้า—ยังไม่ส่งทันที
-                    </div>
+                    <div class="font-semibold text-emerald-800 flex items-center gap-2">🌱 พรีออเดอร์ได้แล้ว</div>
+                    <div class="text-emerald-900/90 mt-1">เปิดรับจองล่วงหน้า—ยังไม่ส่งทันที</div>
                   </div>
-
                   <div class="p-3 rounded-lg border bg-amber-50/60 border-amber-100">
-                    <div class="font-semibold text-amber-800 flex items-center gap-2">
-                      🛠️ กำลังผลิต
-                    </div>
-                    <div class="text-amber-900/90 mt-1">
-                      กำลังปลูก/เลี้ยง/เก็บเกี่ยว เตรียมของสำหรับรอบถัดไป
-                    </div>
+                    <div class="font-semibold text-amber-800 flex items-center gap-2">🛠️ กำลังผลิต</div>
+                    <div class="text-amber-900/90 mt-1">กำลังปลูก/เลี้ยง/เก็บเกี่ยว เตรียมของสำหรับรอบถัดไป</div>
                   </div>
-
                   <div class="p-3 rounded-lg border bg-blue-50/60 border-blue-100">
-                    <div class="font-semibold text-blue-800 flex items-center gap-2">
-                      🛒 พร้อมสั่งซื้อแล้ว
-                    </div>
-                    <div class="text-blue-900/90 mt-1">
-                      ของพร้อมขายและส่งได้ตามปกติ
-                    </div>
+                    <div class="font-semibold text-blue-800 flex items-center gap-2">🛒 พร้อมสั่งซื้อแล้ว</div>
+                    <div class="text-blue-900/90 mt-1">ของพร้อมขายและส่งได้ตามปกติ</div>
                   </div>
-
                   <div class="p-3 rounded-lg border bg-red-50/60 border-red-100">
-                    <div class="font-semibold text-red-800 flex items-center gap-2">
-                      ⛔ ปิดรับจอง
-                    </div>
-                    <div class="text-red-900/90 mt-1">
-                      ของหมดชั่วคราว/หยุดรับคำสั่งซื้อในรอบนี้
-                    </div>
+                    <div class="font-semibold text-red-800 flex items-center gap-2">⛔ ปิดรับจอง</div>
+                    <div class="text-red-900/90 mt-1">ของหมดชั่วคราว/หยุดรับคำสั่งซื้อในรอบนี้</div>
                   </div>
                 </div>
               </details>
@@ -601,42 +589,81 @@
     <i class="fa-solid fa-shield-halved"></i> เช็คบัญชีคนโกง
   </a>
 
-  <!-- ===== Update Success Modal (อัปเดตสินค้าสำเร็จ) ===== -->
-  <div id="updateModal" class="fixed inset-0 z-50 hidden items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
-    <div class="absolute inset-0 bg-black/50 animate-overlay"></div>
-    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-[min(92vw,460px)] animate-pop">
-      <div class="flex items-start gap-3">
-        <div class="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-          <i class="fa-solid fa-check text-emerald-600 text-xl" aria-hidden="true"></i>
+  <!-- ===== Update Success Modal (ฉลองสำเร็จ + คอนเฟตติ + นับถอยหลัง) ===== -->
+  <div id="updateModal" class="fixed inset-0 z-[60] hidden items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+    <div class="absolute inset-0 backdrop-blur-[2px] bg-black/45 animate-overlay"></div>
+
+    <div class="relative bg-white rounded-2xl shadow-2xl p-6 w-[min(92vw,520px)] animate-pop">
+      <!-- confetti layer -->
+      <div id="confetti" class="confetti"></div>
+
+      <div class="flex items-start gap-4 animate-float">
+        <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-check text-emerald-600 text-2xl" aria-hidden="true"></i>
         </div>
         <div class="flex-1">
-          <div id="updateTitle" class="text-lg font-semibold">อัปเดตสินค้าสำเร็จ</div>
-          <div class="text-sm text-gray-600 mt-0.5">
-            จะพากลับไปที่รายการสินค้าของฉันภายใน <span id="countdown">2</span> วินาที
+          <div id="updateTitle" class="text-xl font-bold">อัปเดตสินค้าสำเร็จ 🎉</div>
+          <div class="text-sm text-gray-600 mt-1">
+            จะพากลับไปที่รายการสินค้าของฉันภายใน <span id="countdown">3</span> วินาที
           </div>
         </div>
       </div>
 
-      <div class="mt-4 h-1.5 bg-gray-100 rounded-full overflow-hidden" aria-hidden="true">
+      <div class="mt-5 h-2 bg-gray-100 rounded-full overflow-hidden" aria-hidden="true">
         <div class="h-full bg-emerald-500 animate-bar"></div>
       </div>
 
-      <div class="mt-4 flex items-center justify-end gap-2">
+      <div class="mt-5 flex items-center justify-end gap-2">
         <button type="button" class="btn btn-ghost rounded-lg"
                 onclick="document.getElementById('updateModal').classList.add('hidden')">
           อยู่หน้านี้ต่อ
         </button>
-        <a id="goNowBtn" href="http://localhost:8081/MiniProJ01/product/list/Farmer"
-           class="btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">
+        <!-- แก้ไข: ใช้ลิงก์ภายใต้ context path -->
+        <a id="goNowBtn" href="${ctx}/product/list/Farmer"
+           class="btn bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow">
           กลับตอนนี้
         </a>
       </div>
     </div>
   </div>
 
+  <!-- ========== JSON ของรูปเดิมจากฝั่งเซิร์ฟเวอร์ (อยู่นอก <script> หลัก) ========== -->
+  <script id="existingUrlsData" type="application/json">
+[
+  <c:choose>
+    <c:when test="${not empty images}">
+      <c:forEach var="im" items="${images}" varStatus="s">
+        <c:set var="imgUrl" value="" />
+        <c:choose>
+          <c:when test="${not empty im.imageUrl and fn:startsWith(im.imageUrl,'http')}">
+            <c:set var="imgUrl" value="${im.imageUrl}" />
+          </c:when>
+          <c:when test="${not empty im.imageUrl and fn:startsWith(im.imageUrl,'/uploads/')}">
+            <c:set var="imgUrl" value="${ctx}${im.imageUrl}" />
+          </c:when>
+          <c:otherwise>
+            <c:set var="imgUrl" value="${ctx}/uploads/${im.imageUrl}" />
+          </c:otherwise>
+        </c:choose>
+        "<c:out value='${imgUrl}'/>"<c:if test="${!s.last}">,</c:if>
+      </c:forEach>
+    </c:when>
+    <c:when test="${empty images and not empty p.img}">
+      <c:set var="coverUrl" value="" />
+      <c:choose>
+        <c:when test="${fn:startsWith(p.img,'http')}"><c:set var="coverUrl" value="${p.img}" /></c:when>
+        <c:when test="${fn:startsWith(p.img,'/uploads/')}"><c:set var="coverUrl" value="${ctx}${p.img}" /></c:when>
+        <c:otherwise><c:set var="coverUrl" value="${ctx}/uploads/${p.img}" /></c:otherwise>
+      </c:choose>
+      "<c:out value='${coverUrl}'/>"
+    </c:when>
+  </c:choose>
+]
+  </script>
+
   <!-- ================= Scripts ================= -->
   <script>
-    // ===== โปรไฟล์ดรอปดาวน์ =====
+    /* ===== โปรไฟล์ดรอปดาวน์ ===== */
     function toggleProfileMenu(e){
       e && e.stopPropagation();
       const m = document.getElementById('profileMenu');
@@ -653,15 +680,9 @@
         b.setAttribute('aria-expanded','false');
       }
     });
-    document.addEventListener('keydown',(e)=>{
-      if(e.key==='Escape'){
-        const b=document.getElementById('profileBtn'), m=document.getElementById('profileMenu');
-        if(m) m.classList.add('hidden');
-        if(b) b.setAttribute('aria-expanded','false');
-      }
-    });
+    document.addEventListener('keydown',(e)=>{ if(e.key==='Escape'){ const m=document.getElementById('profileMenu'); if(m) m.classList.add('hidden'); }});
 
-    // ===== Flash helpers =====
+    /* ===== Flash helpers ===== */
     function dismiss(id){ const el=document.getElementById(id); if(el){ el.style.display='none'; } }
     function toggleErrorDetails(){
       const box=document.getElementById('errorDetails');
@@ -676,10 +697,9 @@
         const btn = box.querySelector('button'); if(btn){ btn.textContent='คัดลอกแล้ว!'; setTimeout(()=>btn.textContent='คัดลอกทั้งหมด',1200); }
       }).catch(()=>{ alert('คัดลอกไม่สำเร็จ'); });
     }
-    // auto-hide success after 4s
     setTimeout(()=>{ const ok=document.getElementById('flashOk'); if(ok){ ok.style.display='none'; } }, 4000);
 
-    // ===== Preview รูป (รวมรูปเดิม + รูปใหม่) =====
+    /* ===== Preview รูป (รวมรูปเดิม + รูปใหม่) ===== */
     const input   = document.getElementById('imageFiles');
     const drop    = document.getElementById('imgDrop');
     const thumbs  = document.getElementById('thumbs');
@@ -694,35 +714,19 @@
     let existingUrls = [];
     let cur = 0;
 
-    // inject existing URLs from JSP
+    // อ่าน URLs จาก <script type="application/json"> ที่ฝั่ง JSP เรนเดอร์ไว้
     (function injectExisting(){
-      <c:if test="${not empty images}">
-        <c:forEach var="im" items="${images}">
-          <c:set var="imgUrl" value="" />
-          <c:choose>
-            <c:when test="${not empty im.imageUrl and fn:startsWith(im.imageUrl,'http')}">
-              <c:set var="imgUrl" value="${im.imageUrl}" />
-            </c:when>
-            <c:when test="${not empty im.imageUrl and fn:startsWith(im.imageUrl,'/uploads/')}">
-              <c:set var="imgUrl" value="${ctx}${im.imageUrl}" />
-            </c:when>
-            <c:otherwise>
-              <c:set var="imgUrl" value="${ctx}/uploads/${im.imageUrl}" />
-            </c:otherwise>
-          </c:choose>
-          existingUrls.push("<c:out value='${imgUrl}'/>");
-        </c:forEach>
-      </c:if>
-
-      <c:if test="${empty images and not empty p.img}">
-        <c:set var="coverUrl" value="" />
-        <c:choose>
-          <c:when test="${fn:startsWith(p.img,'http')}"><c:set var="coverUrl" value="${p.img}" /></c:when>
-          <c:when test="${fn:startsWith(p.img,'/uploads/')}"><c:set var="coverUrl" value="${ctx}${p.img}" /></c:when>
-          <c:otherwise><c:set var="coverUrl" value="${ctx}/uploads/${p.img}" /></c:otherwise>
-        </c:choose>
-        existingUrls.push("<c:out value='${coverUrl}'/>");
-      </c:if>
+      try{
+        const node = document.getElementById('existingUrlsData');
+        if(!node) return;
+        const raw = (node.textContent || '[]').trim();
+        const arr = JSON.parse(raw || '[]');
+        if(Array.isArray(arr) && arr.length){
+          existingUrls.push(...arr);
+        }
+      }catch(e){
+        // ถ้า parse ไม่ได้ ปล่อยว่างไว้
+      }
     })();
 
     function toastLimit(){ if(limitMsg){ limitMsg.classList.remove('hidden'); setTimeout(()=>limitMsg.classList.add('hidden'), 1600); } }
@@ -815,15 +819,13 @@
     prevBtn && prevBtn.addEventListener('click', ()=>{ const items = listDisplayItems(); if(items.length){ cur = (cur-1+items.length)%items.length; render(); }});
     nextBtn && nextBtn.addEventListener('click', ()=>{ const items = listDisplayItems(); if(items.length){ cur = (cur+1)%items.length; render(); }});
 
-    // ===== Preview โหมดการขาย + อัปเดต hidden availability (ไลฟ์) =====
+    /* ===== Preview โหมดการขาย + hidden availability ===== */
     const statusSel = document.getElementById('status');
     const stockInput = document.getElementById('stockQty');
     const saleModePreview = document.getElementById('saleModePreview');
     const availabilityHidden = document.getElementById('availabilityHidden');
 
-    function computeAvailability(st, stock){
-      return (st === 'พร้อมสั่งซื้อแล้ว' && stock > 0);
-    }
+    function computeAvailability(st, stock){ return (st === 'พร้อมสั่งซื้อแล้ว' && stock > 0); }
     function paintSaleMode(){
       const st = statusSel ? statusSel.value : '';
       const stock = stockInput && stockInput.value ? parseInt(stockInput.value,10) : 0;
@@ -845,62 +847,66 @@
     stockInput && stockInput.addEventListener('input', paintSaleMode);
     paintSaleMode();
 
-    // quick validation ก่อน submit
+    // quick validation
     document.getElementById('productForm').addEventListener('submit', (e)=>{
       const price = document.getElementById('price');
       const stock = document.getElementById('stockQty');
       if(price && (+price.value < 0 || +price.value > 9999999)){ e.preventDefault(); alert('ราคาต้องอยู่ในช่วง 0 - 9,999,999'); return; }
       if(stock && (+stock.value < 0 || +stock.value > 999999)){ e.preventDefault(); alert('สต๊อกต้องอยู่ในช่วง 0 - 999,999'); return; }
-      paintSaleMode(); // อัปเดต hidden availability ครั้งสุดท้าย
+      paintSaleMode();
     });
 
-    // ===== ป็อปอัพหลัง "แก้ไข" สำเร็จ + redirect ไป URL ที่ผู้ใช้ต้องการ =====
-    const isEditMode = ${not empty p.productId ? 'true' : 'false'};
-    const updatedParam = ('${param.updated}' === '1');
-    const justUpdatedAttr = ${not empty requestScope.justUpdated and requestScope.justUpdated ? 'true' : 'false'};
+    /* ===== Pop-up after update success ===== */
+    const isEditMode = (document.body.dataset.isEdit === 'true');
+    const updatedParam = (document.body.dataset.updatedParam === '1');
+    const justUpdatedAttr = (document.body.dataset.justUpdated === 'true');
 
-    // URL ปลายทาง (ตามที่ต้องการ)
-    const ABS_REDIRECT_URL = 'http://localhost:8081/MiniProJ01/product/list/Farmer';
+    // ใช้ภายใต้ context path แทน absolute เดิม
+    const ABS_REDIRECT_URL = '${ctx}/product/list/Farmer';
 
-    if (isEditMode && (updatedParam || justUpdatedAttr)) {
+    function spawnConfetti(n=80){
+      const box = document.getElementById('confetti');
+      if(!box) return;
+      box.innerHTML = '';
+      const colors = ['#34d399','#10b981','#059669','#fde047','#60a5fa','#f472b6','#f87171'];
+      for(let i=0;i<n;i++){
+        const el = document.createElement('i');
+        el.style.left = (Math.random()*100)+'%';
+        el.style.animationDuration = (1.2 + Math.random()*1.3)+'s';
+        el.style.animationDelay = (Math.random()*.15)+'s';
+        el.style.background = colors[Math.floor(Math.random()*colors.length)];
+        el.style.transform = `translateY(-20vh) rotate(${Math.random()*360}deg)`;
+        box.appendChild(el);
+      }
+      setTimeout(()=>{ box.innerHTML=''; }, 1800);
+    }
+
+    function openSuccessModal(){
       const modal = document.getElementById('updateModal');
       const cd = document.getElementById('countdown');
       const goBtn = document.getElementById('goNowBtn');
-      if(modal){
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+      if(!modal) return;
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      if(goBtn) goBtn.setAttribute('href', ABS_REDIRECT_URL);
+      spawnConfetti();
 
-        // อัปเดต href ปุ่มให้ชัดเจน
-        if(goBtn) goBtn.setAttribute('href', ABS_REDIRECT_URL);
+      let left = 3;
+      const tick = setInterval(()=>{
+        left = Math.max(0, left-1);
+        if(cd) cd.textContent = String(left);
+        if(left === 0){ clearInterval(tick); }
+      }, 1000);
 
-        // นับถอยหลัง 2 -> 1 -> 0
-        let left = 2;
-        const tick = setInterval(()=>{
-          left = Math.max(0, left-1);
-          if(cd) cd.textContent = String(left);
-          if(left === 0){
-            clearInterval(tick);
-          }
-        }, 1000);
-
-        // รีไดเรกต์อัตโนมัติ ~2.2s ให้ตรงกับแอนิเมชันแถบ
-        setTimeout(()=>{ window.location.href = ABS_REDIRECT_URL; }, 2200);
-      }
+      // รีไดเรกต์อัตโนมัติ ~2.5s
+      setTimeout(()=>{ window.location.href = ABS_REDIRECT_URL; }, 2500);
     }
 
-    // init preview render
+    if (isEditMode && (updatedParam || justUpdatedAttr)) {
+      openSuccessModal();
+    }
+
+    // render ครั้งแรก
     render();
   </script>
-
-  <!-- DEBUG
-  <div style="position:fixed;inset:auto 10px 10px auto;background:#ecfccb;border:1px solid #a3e635;padding:.5rem 1rem;z-index:9999">
-    ctx=<c:out value='${pageContext.request.contextPath}'/> ,
-    p.id=<c:out value='${p.productId}' default='-'/> ,
-    cats=<c:out value='${fn:length(categories)}' default='null'/> ,
-    imgs=<c:out value='${fn:length(images)}' default='null'/> ,
-    status=<c:out value='${statusCompact}'/> ,
-    avail=<c:out value='${derivedAvailability}'/>
-  </div>
-  -->
 </body>
 </html>

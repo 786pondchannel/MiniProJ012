@@ -15,7 +15,7 @@ public class HibernateConnection {
             try {
                 Properties props = new Properties();
 
-                
+                // ===== JDBC/MySQL =====
                 props.put("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver");
                 props.put("hibernate.connection.url",
                     "jdbc:mysql://mysql:3306/preorder_farm"
@@ -24,44 +24,37 @@ public class HibernateConnection {
                     + "&useSSL=false"
                     + "&allowPublicKeyRetrieval=true"
                 );
-                props.put("hibernate.connection.username", "root");
-                props.put("hibernate.connection.password", "1234");
+                props.put("hibernate.connection.username", "root");   // ใช้ค่าเดิมของคุณ
+                props.put("hibernate.connection.password", "1234");   // ใช้ค่าเดิมของคุณ
 
-                
+                // ===== Hibernate 6 Dialect =====
                 props.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
 
-                // ให้ Hibernate สร้าง/อัปเดต schema ให้อัตโนมัติ 
+                // ให้ hibernate ช่วย sync โครงสร้าง (ตามแบบที่คุณใช้เดิม)
                 props.put("hibernate.hbm2ddl.auto", "update");
 
-                // ดีบัก (เปิดเมื่ออยากดู SQL)
+                // ดีบัก SQL (เปิดเมื่อจำเป็น)
                 // props.put("hibernate.show_sql", "true");
                 // props.put("hibernate.format_sql", "true");
-
-                // สำหรับกรณี lazy load ใน view (เปิดถ้าจำเป็น)
-                // props.put("hibernate.enable_lazy_load_no_trans", "true");
 
                 StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
                         .applySettings(props)
                         .build();
 
+                // ======= ลงทะเบียนเอนทิตีที่โปรเจ็กต์นี้ใช้ =======
                 MetadataSources sources = new MetadataSources(registry)
-                        // ===== เอนทิตีให้ =====
                         .addAnnotatedClass(com.springmvc.model.Member.class)
                         .addAnnotatedClass(com.springmvc.model.Farmer.class)
                         .addAnnotatedClass(com.springmvc.model.Category.class)
-                        .addAnnotatedClass(com.springmvc.model.Product.class)
-                        .addAnnotatedClass(com.springmvc.model.ProductImage.class)
+                        .addAnnotatedClass(com.springmvc.model.Product.class)       // << สำคัญ
+                        .addAnnotatedClass(com.springmvc.model.ProductImage.class) // << สำคัญ
                         .addAnnotatedClass(com.springmvc.model.FarmerImage.class)
                         .addAnnotatedClass(com.springmvc.model.Review.class)
-                        
-                        .addAnnotatedClass(com.springmvc.model.Perorder.class)       
-                        .addAnnotatedClass(com.springmvc.model.PreorderDetail.class)  
-                        .addAnnotatedClass(com.springmvc.model.Receipt.class);        
+                        .addAnnotatedClass(com.springmvc.model.Perorder.class)
+                        .addAnnotatedClass(com.springmvc.model.PreorderDetail.class)
+                        .addAnnotatedClass(com.springmvc.model.Receipt.class);
 
                 Metadata metadata = sources.getMetadataBuilder().build();
-
-                // ❌ ไม่ต้องมีโค้ด SQL สร้างตารางเองแล้ว ปล่อยให้ hbm2ddl ทำงาน
-
                 sessionFactory = metadata.buildSessionFactory();
 
             } catch (Exception ex) {
