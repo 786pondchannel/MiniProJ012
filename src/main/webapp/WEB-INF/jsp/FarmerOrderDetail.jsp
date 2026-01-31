@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>รายละเอียดคำสั่งซื้อ • เกษตรกรบ้านเรา</title>
+  <title>รายละเอียดคำสั่งจอง • เกษตรกรบ้านเรา</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap"/>
@@ -28,7 +28,6 @@
     body{ color:var(--ink) }
     .page-wrap{ background:linear-gradient(180deg,#f0fdfa 0%,#ffffff 22%,#ffffff 100%) }
 
-    /* Header (ดำเหมือนหน้าอื่น) */
     .header{ background:#000; position:sticky; top:0; z-index:50 }
     .nav-a{ color:#fff; opacity:.92; white-space:nowrap }
     .nav-a:hover{ opacity:1; text-decoration:underline }
@@ -36,25 +35,22 @@
     .nav-scroll::-webkit-scrollbar{ display:none }
     .badge{ min-width:18px;height:18px;padding:0 6px;font-size:.7rem;border-radius:9999px;background:#10b981;color:#fff;display:inline-flex;align-items:center;justify-content:center }
 
-    /* Cards / Buttons (ขาว) */
     .card{ background:#fff; border:1px solid var(--border); border-radius:18px; box-shadow:0 10px 25px rgba(2,8,23,.06) }
     .btn{ display:inline-flex; align-items:center; gap:.55rem; padding:.6rem 1rem; border-radius:.8rem; font-weight:700; border:1px solid #e5e7eb; background:#fff }
     .btn:hover{ filter:brightness(0.98) }
     .btn-sm{ padding:.45rem .75rem; font-weight:600; }
     .btn-emerald{ color:#fff; background:#16a34a; border-color:#16a34a }
-    .btn-amber{   color:#fff; background:#f59e0b; border-color:#f59e0b }
-    .btn-sky{     color:#fff; background:#0284c7; border-color:#0284c7 }
-    .btn-teal{    color:#fff; background:#14b8a6; border-color:#14b8a6 }
-    .btn-danger{  color:#fff; background:#ef4444; border-color:#ef4444 }
+    .btn-amber{ color:#fff; background:#f59e0b; border-color:#f59e0b }
+    .btn-sky{ color:#fff; background:#0284c7; border-color:#0284c7 }
+    .btn-teal{ color:#fff; background:#14b8a6; border-color:#14b8a6 }
+    .btn-danger{ color:#fff; background:#ef4444; border-color:#ef4444 }
 
-    /* Stats */
     .stats{ display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:14px }
     @media(min-width:768px){ .stats{ grid-template-columns: repeat(4,minmax(0,1fr)); } }
     .stat{ background:#fff; border:1px solid var(--border); border-radius:14px; padding:14px; box-shadow:0 6px 14px rgba(2,8,23,.05) }
     .stat .k{ font-size:.8rem; color:var(--muted) }
     .stat .v.big{ font-size:1.4rem; line-height:1.2; font-weight:800 }
 
-    /* Timeline (สว่าง) */
     .timeline{ margin-top:12px }
     .step{ display:flex; align-items:center; gap:.6rem; position:relative; padding:.35rem 0 }
     .step:before{ content:""; position:absolute; left:10px; top:20px; bottom:-10px; width:2px; background:#e5e7eb }
@@ -66,21 +62,66 @@
     .progress{ height:8px; background:#e5e7eb; border-radius:999px; overflow:hidden; margin-top:.7rem }
     .progress .bar{ height:100%; width:0; background:linear-gradient(90deg,#34d399,#10b981); transition:width .6s cubic-bezier(.22,.8,.2,1) }
 
-    /* Table */
     table{ width:100% } thead{ color:#334155 } tbody td{ color:#0f172a }
     tr{ border-bottom:1px solid #e5e7eb } tr:hover{ background:#f8fafc }
 
-    /* Image */
     .img-card{ position:relative; overflow:hidden; border-radius:12px; border:1px solid #e5e7eb; background:#fff }
     .img-fit{ width:100%; height:100%; object-fit:cover; display:block }
 
-    /* Footer */
     .footer-dark{ background:#000; color:#e5e7eb }
     .footer-dark a{ color:#e5e7eb } .footer-dark a:hover{ color:#a7f3d0 }
 
-    /* Alerts */
     .alert{ border-radius:14px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start; box-shadow:0 6px 16px rgba(2,8,23,.08) }
     .alert-info{ background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; border-left-width:6px; border-left-color:#60a5fa }
+
+    .fade-up{ animation:fadeUp .45s ease-out both; }
+    @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:translateY(0) } }
+    .pop{ animation:pop .18s ease-out both; }
+    @keyframes pop{ from{ opacity:0; transform:scale(.98) } to{ opacity:1; transform:scale(1) } }
+    .btn{ transition:transform .12s ease, filter .12s ease; }
+    .btn:active{ transform:translateY(1px) scale(.99); }
+    .shake{ animation:shake .28s ease-in-out 1; }
+    @keyframes shake{
+      0%,100%{ transform:translateX(0) }
+      25%{ transform:translateX(-4px) }
+      75%{ transform:translateX(4px) }
+    }
+
+    .viewer-toolbar .btn-sm{
+      background:rgba(255,255,255,.92) !important;
+      border-color:rgba(255,255,255,.35) !important;
+      color:#0f172a !important;
+      box-shadow:0 8px 20px rgba(0,0,0,.22);
+    }
+    .viewer-toolbar .btn-sm:hover{ background:#fff !important; }
+
+    #viewerStage{ padding:10px; }
+    #viewerImg{
+      max-width:96vw;
+      max-height:86vh;
+      border-radius:14px;
+      box-shadow:0 14px 40px rgba(0,0,0,.35);
+      background:#fff;
+    }
+
+    .bottom-bar{
+      position:fixed; left:0; right:0; bottom:0; z-index:60;
+      padding:10px 12px;
+      background:rgba(255,255,255,.92);
+      border-top:1px solid #e5e7eb;
+      backdrop-filter: blur(10px);
+      box-shadow:0 -12px 30px rgba(2,8,23,.08);
+    }
+    @media(min-width:1024px){ .bottom-bar{ display:none } }
+
+    .toast{
+      position:fixed; right:14px; bottom:14px; z-index:70;
+      min-width:240px;
+      border-radius:14px; padding:12px 14px;
+      background:#0f172a; color:#fff;
+      box-shadow:0 12px 30px rgba(2,8,23,.35);
+      display:none;
+    }
   </style>
 </head>
 
@@ -121,7 +162,7 @@
               <c:otherwise><c:set var="avatarUrl" value="https://thumb.ac-illust.com/c9/c91fc010def4643287c0cc34cef449e0_t.jpeg" /></c:otherwise>
             </c:choose>
 
-             <div class="relative">
+            <div class="relative">
               <button id="profileBtn" type="button" onclick="toggleProfileMenu(event)"
                       class="inline-flex items-center ml-2 px-3 py-1 bg-white/20 hover:bg-white/35 backdrop-blur rounded-full text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-green-300 group"
                       aria-expanded="false" aria-controls="profileMenu">
@@ -167,47 +208,74 @@
   <!-- ================= /Header ================= -->
 
   <main class="container mx-auto px-4 sm:px-6 py-6 lg:py-10">
-    <!-- ไม่พบบิล -->
+
     <c:if test="${empty orderHeader}">
-      <div class="card p-6">
+      <div class="card p-6 fade-up">
         <h2 class="text-xl font-semibold mb-2">ไม่พบบิล หรือคุณไม่มีสิทธิ์เข้าถึง</h2>
         <a href="${ctx}/farmer/orders" class="btn">← กลับไปหน้าออเดอร์</a>
       </div>
     </c:if>
 
-    <!-- พบบิล -->
     <c:if test="${not empty orderHeader}">
       <c:set var="ost" value="${orderHeader.orderStatus}"/>
       <c:set var="pst" value="${orderHeader.paymentStatus}"/>
       <c:set var="OST" value="${fn:toUpperCase(ost)}"/>
       <c:set var="PST" value="${fn:toUpperCase(pst)}"/>
 
-      <!-- Step 1–6 -->
       <c:set var="hasSlip" value="${not empty orderReceipts and fn:length(orderReceipts) gt 0}"/>
+
+      <%-- ===== คำนวณ step 1-6 ===== --%>
       <c:set var="cur6" value="1"/>
       <c:choose>
         <c:when test="${OST == 'COMPLETED' || OST == 'REJECTED' || OST == 'CANCELED'}"><c:set var="cur6" value="6"/></c:when>
         <c:when test="${OST == 'SHIPPED'}"><c:set var="cur6" value="5"/></c:when>
-        <c:when test="${OST == 'PREPARING_SHIPMENT' || PST == 'PAID_CONFIRMED'}"><c:set var="cur6" value="4"/></c:when>
-        <c:when test="${hasSlip}"><c:set var="cur6" value="3"/></c:when>
-        <c:when test="${OST != 'SENT_TO_FARMER'}"><c:set var="cur6" value="2"/></c:when>
+        <c:when test="${OST == 'PREPARING_SHIPMENT'}"><c:set var="cur6" value="4"/></c:when>
+        <c:when test="${PST == 'PAID_CONFIRMED'}"><c:set var="cur6" value="3"/></c:when>
+        <c:when test="${hasSlip || PST == 'PAID_PENDING_VERIFY'}"><c:set var="cur6" value="2"/></c:when>
+        <c:when test="${OST == 'FARMER_CONFIRMED'}"><c:set var="cur6" value="1"/></c:when>
         <c:otherwise><c:set var="cur6" value="1"/></c:otherwise>
       </c:choose>
       <c:set var="prog" value="${(cur6-1)*20}"/>
 
-      <!-- Next action -->
+      <%-- ===== Next action =====
+           ✅ FIX: ปุ่ม “ยืนยันคำสั่งซื้อ” ต้องขึ้นตอน SENT_TO_FARMER (ไม่ใช่ FARMER_CONFIRMED)
+      --%>
       <c:set var="next" value="none"/>
       <c:choose>
-        <c:when test="${OST == 'SENT_TO_FARMER'}"><c:set var="next" value="confirm"/></c:when>
-        <c:when test="${PST != 'PAID_CONFIRMED'}"><c:set var="next" value="verify"/></c:when>
-        <c:when test="${OST == 'FARMER_CONFIRMED'}"><c:set var="next" value="prepare"/></c:when>
-        <c:when test="${OST == 'PREPARING_SHIPMENT'}"><c:set var="next" value="ship"/></c:when>
-        <c:when test="${OST == 'SHIPPED'}"><c:set var="next" value="complete"/></c:when>
-        <c:otherwise><c:set var="next" value="none"/></c:otherwise>
+        <c:when test="${OST == 'SENT_TO_FARMER'}">
+          <c:set var="next" value="confirm"/>
+        </c:when>
+
+        <c:when test="${OST == 'FARMER_CONFIRMED' && !(hasSlip || PST == 'PAID_PENDING_VERIFY' || PST == 'PAID_CONFIRMED')}">
+          <c:set var="next" value="none"/>
+        </c:when>
+
+        <c:when test="${(hasSlip || PST == 'PAID_PENDING_VERIFY') && PST != 'PAID_CONFIRMED'}">
+          <c:set var="next" value="verify"/>
+        </c:when>
+
+        <c:when test="${PST == 'PAID_CONFIRMED' && OST == 'FARMER_CONFIRMED'}">
+          <c:set var="next" value="prepare"/>
+        </c:when>
+
+        <c:when test="${OST == 'PREPARING_SHIPMENT'}">
+          <c:set var="next" value="ship"/>
+        </c:when>
+
+        <c:when test="${OST == 'SHIPPED'}">
+          <c:set var="next" value="complete"/>
+        </c:when>
+
+        <c:otherwise>
+          <c:set var="next" value="none"/>
+        </c:otherwise>
       </c:choose>
 
-      <!-- แถบหัวเรื่อง -->
-      <div class="card p-6 mb-6">
+      <%-- ยกเลิกได้ตั้งแต่ SENT_TO_FARMER หรือ FARMER_CONFIRMED แต่ยังไม่จ่าย (AWAITING_BUYER_PAYMENT) --%>
+<c:set var="canCancel"
+       value="${OST == 'SENT_TO_FARMER' || (OST == 'FARMER_CONFIRMED' && PST == 'AWAITING_BUYER_PAYMENT')}" />
+
+      <div class="card p-6 mb-6 fade-up">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
           <div>
             <div class="text-xs text-slate-500">คำสั่งซื้อ</div>
@@ -239,7 +307,6 @@
               </div>
             </div>
 
-            <!-- Timeline -->
             <div class="timeline mt-5 text-[0.98rem]">
               <div class="step ${cur6 >= 1 ? (cur6==1?'live':'done') : ''}">
                 <span class="dot"></span><span class="ico">✅</span><span>1) ร้านยืนยัน</span>
@@ -264,7 +331,6 @@
             </div>
           </div>
 
-          <!-- ปุ่มการกระทำ (จัดชิดขวาสุด) -->
           <div class="w-full lg:w-auto lg:ml-auto flex flex-col items-end gap-1 text-right">
             <div class="flex flex-wrap gap-2 justify-end">
               <a href="${ctx}/farmer/orders" class="btn">← กลับ</a>
@@ -276,7 +342,6 @@
                 </form>
               </c:if>
 
-              <!-- กดยืนยันรับชำระได้เสมอ -->
               <c:if test="${next == 'verify'}">
                 <form action="${ctx}/farmer/orders/${orderHeader.orderId}/verify-payment" method="post">
                   <c:if test="${not empty _csrf}"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/></c:if>
@@ -303,27 +368,32 @@
                   <button class="btn btn-emerald"><i class="fa-solid fa-flag-checkered"></i> ปิดงาน (สำเร็จ)</button>
                 </form>
               </c:if>
+
+              <%-- ✅ ยกเลิกได้ตั้งแต่ SENT_TO_FARMER / FARMER_CONFIRMED --%>
+              <c:if test="${canCancel}">
+                <button type="button"
+                        class="btn btn-danger"
+                        onclick="openCancelModal('${orderHeader.orderId}')">
+                  <i class="fa-solid fa-times"></i> ยกเลิกคำสั่งซื้อ
+                </button>
+              </c:if>
             </div>
 
-            <!-- ข้อความแจ้งเตือนชิดขวา -->
-            <c:if test="${next == 'verify' && not hasSlip}">
-              <div class="text-xs text-slate-500 mt-1">ยังไม่พบสลิปจากลูกค้า แต่คุณยังสามารถยืนยันรับชำระได้</div>
+            <c:if test="${OST == 'FARMER_CONFIRMED' && !(hasSlip || PST == 'PAID_PENDING_VERIFY' || PST == 'PAID_CONFIRMED')}">
+              <div class="text-xs text-slate-500 mt-1">รอผู้ซื้อชำระเงิน/อัปโหลดสลิปก่อน จึงจะตรวจและยืนยันการชำระได้</div>
             </c:if>
           </div>
         </div>
 
         <div class="mt-3 alert alert-info">
           <i class="fa-solid fa-circle-info mt-0.5"></i>
-          <div>ลำดับงาน: ยืนยัน → ตรวจ/ยืนยันเงิน → เตรียม → กำหนดวันส่ง → ปิดงาน</div>
+          <div>ลำดับงาน: ยืนยัน → รอผู้ซื้อชำระ/สลิป → ยืนยันรับเงิน → เตรียม → ตั้งวันส่ง → ปิดงาน</div>
         </div>
       </div>
 
-      <!-- Layout -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- ซ้าย -->
         <div class="lg:col-span-2 space-y-6">
-          <!-- รายการสินค้า -->
-          <div class="card p-6">
+          <div class="card p-6 fade-up">
             <h3 class="text-lg font-semibold mb-4">รายการสินค้า</h3>
             <c:if test="${empty orderItems}">
               <div class="text-slate-600 text-sm">ไม่มีสินค้าในบิลนี้</div>
@@ -376,8 +446,7 @@
             </c:if>
           </div>
 
-          <!-- สลิป -->
-          <div class="card p-6">
+          <div class="card p-6 fade-up">
             <div class="flex items-center justify-between mb-3">
               <h3 class="text-lg font-semibold">สลิปชำระเงิน</h3>
               <span class="text-xs text-slate-500">
@@ -415,10 +484,8 @@
           </div>
         </div>
 
-        <!-- ขวา -->
         <aside class="space-y-6">
-          <!-- ข้อมูลลูกค้า -->
-          <div class="card p-6">
+          <div class="card p-6 fade-up">
             <h3 class="text-lg font-semibold mb-3">ข้อมูลลูกค้า</h3>
             <div class="space-y-1 text-sm">
               <div><span class="text-slate-500">ชื่อ: </span><span class="font-medium"><c:out value="${orderHeader.customerName}" default="-"/></span></div>
@@ -434,8 +501,7 @@
             </div>
           </div>
 
-          <!-- หมายเหตุ -->
-          <div class="card p-6">
+          <div class="card p-6 fade-up">
             <h3 class="text-lg font-semibold mb-2">หมายเหตุจากลูกค้า</h3>
             <c:catch var="__noteErr1"><c:set var="__note" value="${orderHeader.note}"/></c:catch>
             <c:if test="${empty __note}"><c:catch var="__noteErr2"><c:set var="__note" value="${orderHeader.orderNote}"/></c:catch></c:if>
@@ -446,26 +512,44 @@
               <c:when test="${not empty __note}">
                 <div id="noteBox" class="text-sm whitespace-pre-line"></div>
                 <script>
-                  (function(){ var text = "<c:out value='${__note}'/>"; var el = document.getElementById('noteBox');
-                    var i=0; (function t(){ el.textContent=text.slice(0, i++); if(i<=text.length) setTimeout(t, 18); })(); })();
+                  (function(){
+                    var text = "<c:out value='${__note}'/>";
+                    var el = document.getElementById('noteBox');
+                    var i=0;
+                    (function t(){ el.textContent=text.slice(0, i++); if(i<=text.length) setTimeout(t, 18); })();
+                  })();
                 </script>
               </c:when>
               <c:otherwise>
                 <div class="text-xs text-slate-500 mb-1">ยังไม่มีหมายเหตุจากลูกค้า</div>
                 <ul class="list-disc pl-5 text-sm text-slate-700 space-y-1">
                   <li>ยืนยันคำสั่งซื้อ → ลูกค้าจึงชำระเงิน</li>
-                  <li>กด “ยืนยันรับชำระเงินแล้ว” ได้แม้ยังไม่มีสลิป</li>
-                  <li>ตั้งวันส่งแล้วแจ้งลูกค้าพร้อมเลขพัสดุภายหลัง (ถ้ามี)</li>
+                  <li>เมื่อมีสลิป/สถานะรอตรวจ → กดยืนยันรับชำระเงินได้</li>
+                  <li>เตรียมสินค้า → ตั้งวันส่ง → ปิดงาน</li>
                 </ul>
               </c:otherwise>
             </c:choose>
           </div>
         </aside>
       </div>
+
+      <%-- ✅ ปุ่มยกเลิกชุดที่ 2 (แถบล่างมือถือ) --%>
+      <c:if test="${canCancel}">
+        <div class="bottom-bar pop">
+          <div class="container mx-auto flex items-center justify-between gap-2">
+            <a href="${ctx}/farmer/orders" class="btn btn-sm">← กลับ</a>
+            <button type="button" class="btn btn-danger"
+                    onclick="openCancelModal('${orderHeader.orderId}')">
+              <i class="fa-solid fa-times"></i> ยกเลิกคำสั่งซื้อ
+            </button>
+          </div>
+        </div>
+        <div class="h-16 lg:hidden"></div>
+      </c:if>
+
     </c:if>
   </main>
 
-  <!-- ================= Footer ================= -->
   <footer class="footer-dark mt-10">
     <div class="container mx-auto px-6 py-10 grid md:grid-cols-3 gap-6 text-sm">
       <div>
@@ -490,10 +574,9 @@
     </div>
   </footer>
 
-  <!-- ===== Modal: กำหนดวันส่ง (ปรับข้อความ + ตัดช่องบริษัท/เลขพัสดุ) ===== -->
   <div id="modalShip" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-black/60" onclick="closeModal('modalShip')"></div>
-    <div class="relative max-w-md mx-auto mt-24 card p-6">
+    <div class="relative max-w-md mx-auto mt-24 card p-6 pop">
       <h3 class="text-lg font-semibold mb-2">บันทึกกำหนดส่งให้ลูกค้า</h3>
       <form action="${ctx}/farmer/orders/${orderHeader.orderId}/ship" method="post" class="space-y-4">
         <c:if test="${not empty _csrf}"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/></c:if>
@@ -509,29 +592,59 @@
     </div>
   </div>
 
-  <!-- ===== Viewer เต็มจอ ===== -->
-  <div id="viewerModal" class="fixed inset-0 z-50 hidden">
-    <div class="absolute inset-0 bg-black/80" onclick="closeViewer()"></div>
-    <div class="absolute inset-0 flex flex-col">
-      <div class="p-2 sm:p-3 flex items-center gap-2 justify-between text-white">
-        <div class="flex items-center gap-2"><span id="viewerTitle" class="text-sm sm:text-base font-semibold"></span></div>
-        <div class="flex items-center gap-2">
-          <button class="btn btn-sm" onclick="viewerZoom(1)">+</button>
-          <button class="btn btn-sm" onclick="viewerZoom(-1)">−</button>
-          <button class="btn btn-sm" onclick="viewerResetZoom()">100%</button>
-          <button class="btn btn-sm" onclick="viewerRotate()">⤾</button>
-          <a id="viewerDownload" class="btn btn-sm" download>⬇</a>
-          <button class="btn btn-sm" onclick="closeViewer()">✕</button>
-        </div>
+  <%-- ✅ Modal ยืนยันยกเลิก --%>
+  <div id="modalCancel" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/60" onclick="closeModal('modalCancel')"></div>
+    <div class="relative max-w-md mx-auto mt-24 card p-6 pop">
+      <h3 class="text-lg font-semibold mb-1">ยืนยันการยกเลิกคำสั่งซื้อ</h3>
+      <div class="text-sm text-slate-600 mb-4">
+        การยกเลิกทำได้เฉพาะช่วงก่อนมีการชำระเงิน (SENT_TO_FARMER / FARMER_CONFIRMED)
       </div>
-      <div id="viewerStage" class="flex-1 flex items-center justify-center overflow-hidden select-none">
-        <img id="viewerImg" alt="preview" class="max-h-full max-w-full transition-transform duration-150 ease-out will-change-transform"/>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm text-slate-700 mb-1">เหตุผล (ไม่บังคับ)</label>
+          <textarea id="cancelReason" class="w-full border border-slate-300 bg-white text-slate-800 rounded-md px-3 py-2 min-h-[84px]"
+                    placeholder="เช่น ลูกค้าขอยกเลิก / สินค้าไม่พร้อม ฯลฯ"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn" onclick="closeModal('modalCancel')">ยังไม่ยกเลิก</button>
+          <button id="btnDoCancel" type="button" class="btn btn-danger" onclick="submitCancel()">
+            <i class="fa-solid fa-times"></i> ยืนยันยกเลิก
+          </button>
+        </div>
+
+        <div id="cancelHint" class="text-xs text-slate-500 hidden"></div>
       </div>
     </div>
   </div>
 
+  <div id="viewerModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/80" onclick="closeViewer()"></div>
+    <div class="absolute inset-0 flex flex-col">
+      <div class="p-2 sm:p-3 flex items-center gap-2 justify-between text-white viewer-toolbar">
+        <div class="flex items-center gap-2">
+          <span id="viewerTitle" class="text-sm sm:text-base font-semibold"></span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn btn-sm" onclick="viewerZoom(1)" title="ซูมเข้า">+</button>
+          <button class="btn btn-sm" onclick="viewerZoom(-1)" title="ซูมออก">−</button>
+          <button class="btn btn-sm" onclick="viewerResetZoom()" title="รีเซ็ตซูม">100%</button>
+          <button class="btn btn-sm" onclick="viewerRotate()" title="หมุน">⤾</button>
+          <a id="viewerDownload" class="btn btn-sm" download title="ดาวน์โหลด">⬇</a>
+          <button class="btn btn-sm" onclick="closeViewer()" title="ปิด">✕</button>
+        </div>
+      </div>
+      <div id="viewerStage" class="flex-1 flex items-center justify-center overflow-hidden select-none">
+        <img id="viewerImg" alt="preview" class="transition-transform duration-150 ease-out will-change-transform"/>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
   <script>
-    /* Profile dropdown */
     function toggleProfileMenu(e){
       e && e.stopPropagation();
       var m = document.getElementById('profileMenu');
@@ -545,18 +658,33 @@
       if(!b||!m) return;
       if(!b.contains(e.target) && !m.contains(e.target)){ m.classList.add('hidden'); b.setAttribute('aria-expanded','false'); }
     });
-    document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ var m=document.getElementById('profileMenu'); var b=document.getElementById('profileBtn'); if(m) m.classList.add('hidden'); if(b) b.setAttribute('aria-expanded','false'); } });
 
-    /* Progress */
-    (function(){ var b=document.getElementById('stepBar'); if(b){ var t=+b.dataset.target||0; requestAnimationFrame(function(){ b.style.width=t+'%'; }); } })();
+    (function(){
+      var b=document.getElementById('stepBar');
+      if(b){
+        var t=+b.dataset.target||0;
+        requestAnimationFrame(function(){ b.style.width=t+'%'; });
+      }
+    })();
 
-    /* Modal */
-    function openModal(id){ var el=document.getElementById(id); if(el){ el.classList.remove('hidden'); document.body.style.overflow='hidden'; } }
-    function closeModal(id){ var el=document.getElementById(id); if(el){ el.classList.add('hidden'); document.body.style.overflow=''; } }
+    function openModal(id){
+      var el=document.getElementById(id);
+      if(el){
+        el.classList.remove('hidden');
+        document.body.style.overflow='hidden';
+      }
+    }
+    function closeModal(id){
+      var el=document.getElementById(id);
+      if(el){
+        el.classList.add('hidden');
+        document.body.style.overflow='';
+      }
+    }
 
-    /* Viewer */
     var ZOOM=1, ROT=0, ORIGIN_X=0, ORIGIN_Y=0;
-    function openViewer(url,title){ ZOOM=1; ROT=0; ORIGIN_X=0; ORIGIN_Y=0; applyTransform();
+    function openViewer(url,title){
+      ZOOM=1; ROT=0; ORIGIN_X=0; ORIGIN_Y=0; applyTransform();
       document.getElementById('viewerImg').removeAttribute('src');
       document.getElementById('viewerTitle').textContent=title||'รูปภาพ';
       document.getElementById('viewerDownload').href=url;
@@ -564,29 +692,57 @@
       document.getElementById('viewerModal').classList.remove('hidden');
       document.body.style.overflow='hidden';
     }
-    function closeViewer(){ document.getElementById('viewerModal').classList.add('hidden'); document.body.style.overflow=''; }
-    function applyTransform(){ document.getElementById('viewerImg').style.transform='translate('+ORIGIN_X+'px,'+ORIGIN_Y+'px) scale('+ZOOM+') rotate('+ROT+'deg)'; }
-    function viewerZoom(d){ var step=.15; ZOOM=Math.min(8,Math.max(.2,ZOOM+(d>0?step:-step))); applyTransform(); }
+    function closeViewer(){
+      document.getElementById('viewerModal').classList.add('hidden');
+      document.body.style.overflow='';
+    }
+    function applyTransform(){
+      document.getElementById('viewerImg').style.transform =
+        'translate('+ORIGIN_X+'px,'+ORIGIN_Y+'px) scale('+ZOOM+') rotate('+ROT+'deg)';
+    }
+    function viewerZoom(d){
+      var step=.15;
+      ZOOM=Math.min(8,Math.max(.2,ZOOM+(d>0?step:-step)));
+      applyTransform();
+    }
     function viewerResetZoom(){ ZOOM=1; ORIGIN_X=0; ORIGIN_Y=0; applyTransform(); }
     function viewerRotate(){ ROT=(ROT+90)%360; applyTransform(); }
     (function pan(){
-      var stage=document.getElementById('viewerStage'); var drag=false,sx=0,sy=0;
+      var stage=document.getElementById('viewerStage');
+      var drag=false,sx=0,sy=0;
       if(!stage) return;
-      stage.addEventListener('mousedown',function(e){ drag=true; sx=e.clientX-ORIGIN_X; sy=e.clientY-ORIGIN_Y; });
-      window.addEventListener('mousemove',function(e){ if(!drag) return; ORIGIN_X=e.clientX-sx; ORIGIN_Y=e.clientY-sy; applyTransform(); });
+      stage.addEventListener('mousedown',function(e){
+        drag=true; sx=e.clientX-ORIGIN_X; sy=e.clientY-ORIGIN_Y;
+      });
+      window.addEventListener('mousemove',function(e){
+        if(!drag) return;
+        ORIGIN_X=e.clientX-sx; ORIGIN_Y=e.clientY-sy; applyTransform();
+      });
       window.addEventListener('mouseup',function(){ drag=false; });
-      stage.addEventListener('wheel',function(e){ e.preventDefault(); viewerZoom(e.deltaY>0?-1:1); }, {passive:false});
+      stage.addEventListener('wheel',function(e){
+        e.preventDefault();
+        viewerZoom(e.deltaY>0?-1:1);
+      }, {passive:false});
+      stage.addEventListener('dblclick',function(){ viewerZoom(1); });
     })();
 
-    /* Image resolver (เรียบง่าย ปลอด control-char) */
     var ctx = '${ctx}';
     function isAbs(u){ return /^https?:\/\//i.test(u); }
-    function resolvePath(raw){
+    function normalizeRaw(raw){
       if(!raw) return '';
-      var s = String(raw).trim().replace(/\\/g,'/');
+      var s = String(raw).trim();
+      s = s.replace(/[\u0000-\u001F\u007F]/g, '');
+      s = s.replace(/\\/g,'/');
+      s = s.replace(/^[a-zA-Z]:/,'');
+      return s;
+    }
+    function resolvePath(raw){
+      var s = normalizeRaw(raw);
+      if(!s) return '';
       if(isAbs(s)) return s;
-      if(s.indexOf('/uploads/')===0) return ctx + s;
+      if(s.indexOf('/uploads/') === 0) return ctx + s;
       if(s[0] === '/') return ctx + s;
+      if(s.indexOf('uploads/') === 0) return ctx + '/' + s;
       return ctx + '/uploads/' + s;
     }
     function resolveAllImgs(){
@@ -598,9 +754,112 @@
       });
     }
     window.addEventListener('DOMContentLoaded', resolveAllImgs);
+
     function openReceiptFromAnchor(a){
-      var img=a.querySelector('img[data-raw]'); var url=img && img.src; var title='สลิป #' + (a.dataset.rid||'');
+      var img=a.querySelector('img[data-raw]');
+      var url=img && img.src;
+      var title='สลิป #' + (a.dataset.rid||'');
       if(url) openViewer(url, title);
+    }
+
+    function toast(msg){
+      var el=document.getElementById('toast');
+      if(!el) return;
+      el.textContent = msg;
+      el.style.display='block';
+      el.classList.remove('shake');
+      setTimeout(function(){ el.classList.add('shake'); }, 10);
+      clearTimeout(window.__toastT);
+      window.__toastT=setTimeout(function(){ el.style.display='none'; }, 3200);
+    }
+
+    // ====== CANCEL FLOW ======
+    var __cancelOrderId = null;
+
+    function openCancelModal(orderId){
+      __cancelOrderId = orderId;
+      var hint=document.getElementById('cancelHint');
+      if(hint){ hint.classList.add('hidden'); hint.textContent=''; }
+      var reason=document.getElementById('cancelReason');
+      if(reason) reason.value='';
+      openModal('modalCancel');
+    }
+
+    function getCsrf(){
+      var paramName = '<c:out value="${not empty _csrf ? _csrf.parameterName : ''}"/>';
+      var token = '<c:out value="${not empty _csrf ? _csrf.token : ''}"/>';
+      return { paramName:paramName, token:token };
+    }
+
+    function redirectToOrders(){
+      var base = (ctx && ctx.trim()) ? ctx : '/preorder';
+      window.location.href = base + '/farmer/orders?unlockDelete=' + encodeURIComponent(__cancelOrderId);
+    }
+
+    async function postForm(url, dataObj){
+      var pairs=[];
+      for(var k in dataObj){
+        if(dataObj[k] === undefined || dataObj[k] === null) continue;
+        pairs.push(encodeURIComponent(k)+'='+encodeURIComponent(String(dataObj[k])));
+      }
+      var body=pairs.join('&');
+
+      var res = await fetch(url, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded; charset=UTF-8' },
+        body: body,
+        credentials:'same-origin'
+      });
+
+      return !!(res && res.ok);
+    }
+
+    async function submitCancel(){
+      var btn=document.getElementById('btnDoCancel');
+      if(!__cancelOrderId){
+        toast('ไม่พบรหัสออเดอร์');
+        return;
+      }
+
+      btn && (btn.disabled=true);
+      btn && (btn.style.opacity='.75');
+
+      var reasonEl=document.getElementById('cancelReason');
+      var reason = reasonEl ? reasonEl.value.trim() : '';
+
+      var csrf = getCsrf();
+      var payload = {};
+      if(reason) payload.reason = reason;
+      if(csrf.paramName && csrf.token) payload[csrf.paramName]=csrf.token;
+
+      var base = (ctx && ctx.trim()) ? ctx : '';
+      var oid = __cancelOrderId;
+
+      // ลองทั้งฝั่ง farmer และ /orders
+      var urlsToTry = [
+        base + '/farmer/orders/' + oid + '/cancel',
+        base + '/orders/' + oid + '/cancel'
+      ];
+
+      var ok=false;
+      for(var i=0;i<urlsToTry.length;i++){
+        try{
+          ok = await postForm(urlsToTry[i], payload);
+          if(ok){ break; }
+        }catch(e){}
+      }
+
+      closeModal('modalCancel');
+
+      if(ok){
+        toast('ยกเลิกสำเร็จ กำลังกลับหน้าออเดอร์...');
+        setTimeout(redirectToOrders, 450);
+        return;
+      }
+
+      toast('ยกเลิกไม่สำเร็จ (404/endpoint ไม่ตรง หรือ backend ไม่อนุญาตสถานะนี้)');
+      btn && (btn.disabled=false);
+      btn && (btn.style.opacity='1');
     }
   </script>
 </body>

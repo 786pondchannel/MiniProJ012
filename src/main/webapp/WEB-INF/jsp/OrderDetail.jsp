@@ -36,6 +36,19 @@
   <c:set var="paidConfirmed" value="${(postConfirm and (PST == 'PAID_CONFIRMED' or PST == 'PAID_VERIFIED')) or (OST=='SHIPPED' or OST=='COMPLETED')}"/>
   <c:set var="readyForBuyerConfirm" value="${(paidConfirmed or OST=='SHIPPED' or OST=='COMPLETED') and (not buyerOk) and (not finished)}"/>
 
+  <!-- ===== QR URL แบบเดียวกับหน้าร้าน (สำคัญที่สุด) ===== -->
+  <c:set var="qrRaw" value="${not empty paymentSlipUrl ? paymentSlipUrl : (not empty farmer ? farmer.slipUrl : '')}"/>
+  <c:if test="${qrRaw == 'null' || qrRaw == 'NULL'}"><c:set var="qrRaw" value=""/></c:if>
+
+  <c:set var="slipU" value=""/>
+  <c:choose>
+    <c:when test="${empty qrRaw}"><c:set var="slipU" value=""/></c:when>
+    <c:when test="${fn:startsWith(qrRaw,'http')}"><c:set var="slipU" value="${qrRaw}"/></c:when>
+    <c:when test="${fn:startsWith(qrRaw,'/')}"><c:set var="slipU" value="${ctx}${qrRaw}"/></c:when>
+    <c:when test="${fn:startsWith(qrRaw,'uploads/')}"><c:set var="slipU" value="${ctx}/${qrRaw}"/></c:when>
+    <c:otherwise><c:set var="slipU" value="${ctx}/uploads/${qrRaw}"/></c:otherwise>
+  </c:choose>
+
   <!-- ป้าย -->
   <c:set var="orderBadgeCls" value="bg-sky-100 text-sky-800"/>
   <c:choose>
@@ -139,7 +152,7 @@
     #celeCarRig .car-body{width:85%;height:35%;position:absolute;top:43%;left:8%;border:2px solid #333;border-top:none;border-radius:20px 5px 30px 30px;background:firebrick}
     #celeCarRig .wheels{width:7%;height:16%;position:absolute;border:25px double #000;border-radius:50%;top:61%;z-index:1;background:#999}
     #celeCarRig .first-tyre{left:20%} .second-tyre{left:70%}
-    @keyframes cele-wheel-drive{to{transform:rotate(360deg)}} 
+    @keyframes cele-wheel-drive{to{transform:rotate(360deg)}}
     #celeCarRig.moving .wheels{animation:cele-wheel-drive .45s linear infinite}
     #celeBox{position:absolute; width:9%; aspect-ratio:1/1; z-index:22; background:linear-gradient(180deg,#ffd188,#f59e0b); border-radius:10px; box-shadow:0 18px 48px rgba(2,8,23,.22); transform-origin:50% 100%; opacity:0; left:78%; bottom:29%}
     #celeBox::before,#celeBox::after{content:"";position:absolute;inset:0}
@@ -263,7 +276,8 @@
         data-orderid="${empty order.orderId ? '' : order.orderId}"
         data-farmerid="${empty order.farmerId ? '' : order.farmerId}"
         data-ost="${OST}" data-pst="${PST}"
-        data-buyerok="${buyerOk}" data-finished="${finished}">
+        data-buyerok="${buyerOk}" data-finished="${finished}"
+        data-qrurl="${slipU}">
 
     <!-- สรุปคำสั่งซื้อ -->
     <section class="card p-6 md:p-7">
@@ -292,7 +306,6 @@
         <div class="grid sm:grid-cols-2 gap-2 w-full lg:w-[420px]">
           <a href="${ctx}/reviews/new-by-order?orderId=${order.orderId}" class="btn btn-emerald w-full ${(paidPending or paidConfirmed) ? '' : 'opacity-50 pointer-events-none'}">⭐ รีวิวออเดอร์นี้</a>
 
-          <!-- แก้ตัวแปร farmerId ให้ถูกต้อง -->
           <a href="${ctx}/farmer/profile/view?farmerId=${order.farmerId}" class="btn btn-outline w-full" title="ดูรีวิวทั้งหมดของร้าน">
             <svg viewBox="0 0 24 24" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/>
@@ -337,7 +350,6 @@
             </c:when>
             <c:otherwise>
               <c:forEach var="it" items="${items}" varStatus="st">
-                <!-- รูปสินค้า: ครอบคลุมทุก path + onerror fallback -->
                 <c:set var="rawImg" value="${empty it.img ? (empty it.imageUrl ? '' : it.imageUrl) : it.img}"/>
                 <c:set var="imgUrl" value=""/>
                 <c:choose>
@@ -768,20 +780,28 @@
       }).catch(()=>{});
     }
 
-    // ===== QR / Receipt (fallback หลายจุดแบบ /orders) =====
+    // ===== Receipt (ยังใช้ fallback ได้เหมือนเดิม) =====
     function probeImage(u){ return new Promise(r=>{ const i=new Image(); i.onload=()=>r(true); i.onerror=()=>r(false); i.src=u+(u.includes('?')?'&':'?')+'t='+Date.now(); }); }
-    async function resolveQrUrl(){
-      try{ const a = ctx + '/orders/' + encodeURIComponent(ORDER_ID) + '/payment-qr'; const r = await fetch(a,{headers:{'Accept':'application/json'}}); if(r.ok){ const j=await r.json(); if(j?.url && await probeImage(j.url)) return j.url; } }catch(_){}
-      if(FARMER_ID){ const b = ctx + '/payment/qr/' + encodeURIComponent(FARMER_ID); if(await probeImage(b)) return b; }
-      return null;
-    }
     async function resolveReceiptUrl(){
       try{ const a = ctx + '/orders/' + encodeURIComponent(ORDER_ID) + '/receipt'; const r = await fetch(a,{headers:{'Accept':'application/json'}}); if(r.ok){ const j=await r.json(); if(j?.url && await probeImage(j.url)) return j.url; } }catch(_){}
       const b = ctx + '/orders/' + encodeURIComponent(ORDER_ID) + '/receipt/image'; if(await probeImage(b)) return b;
       const c = ctx + '/payment/receipt/' + encodeURIComponent(ORDER_ID); return (await probeImage(c)) ? c : null;
     }
-    async function openQr(){ const url = await resolveQrUrl(); if(!url){ alert('ยังไม่พบ QR ของร้าน'); return; } openViewer(url,'ชำระเงินด้วย QR'); }
-    async function openReceipt(){ const url = await resolveReceiptUrl(); if(!url){ alert('ยังไม่พบบันทึกสลิป'); return; } openViewer(url,'สลิปการชำระเงิน #'+ORDER_ID); }
+
+    // ===== QR: ใช้ slipU แบบหน้าร้าน (ไม่ fetch ไม่ probe) =====
+    function openQr(){
+      const url = (ROOT.dataset.qrurl || '').trim();
+      if(!url){
+        alert('ยังไม่พบ QR ของร้าน (slipU ว่าง)');
+        return;
+      }
+      openViewer(url,'ชำระเงินด้วย QR');
+    }
+    async function openReceipt(){
+      const url = await resolveReceiptUrl();
+      if(!url){ alert('ยังไม่พบบันทึกสลิป'); return; }
+      openViewer(url,'สลิปการชำระเงิน #'+ORDER_ID);
+    }
 
     // ===== Celebrate control =====
     const CELE_DUR_IN=2200, CELE_DUR_DROP=500, CELE_DUR_OUT=1600, CELE_TOTAL=6000; let CELE_TIMER=null;
@@ -797,20 +817,16 @@
       if(!oid || CONFIRM_LOCK.has(oid)) return;
       CONFIRM_LOCK.add(oid);
 
-      // ซ่อนปุ่มทุกตัวที่ตั้ง data-once
       document.querySelectorAll('button[data-once="true"]').forEach(b=>{ b.disabled=true; b.style.display='none'; });
 
-      // ดันสถานะในหน้า → ขั้น 5 และจำฝั่ง client
       ROOT.dataset.buyerok = 'true';
       ROOT.dataset.finished = 'false';
       localStorage.setItem('orders:buyerOk:'+oid,'1');
       localStorage.removeItem('orders:finished:'+oid);
       updateStepTagAndStepper();
 
-      // เล่นฉาก Celebrate
       openCelebrate();
 
-      // ยิงบันทึกไป server แบบ fire-and-forget
       try{
         fetch(ctx + '/orders/' + encodeURIComponent(oid) + '/buyer-confirm', {
           method:'POST',
@@ -819,7 +835,6 @@
         }).catch(()=>{});
       }catch(_){}
 
-      // หลังจบอนิเมชัน → ขั้น 6
       setTimeout(()=>{
         ROOT.dataset.finished = 'true';
         localStorage.setItem('orders:finished:'+oid,'1');
@@ -854,13 +869,11 @@
       if(ok)  ROOT.dataset.buyerok='true';
       if(fin) ROOT.dataset.finished='true';
       updateStepTagAndStepper();
-      // ซ่อนปุ่มยืนยันถ้าเคยยืนยันหรือจบแล้ว
       if(ok || fin){
         document.querySelectorAll('button[onclick^="buyerConfirm"]').forEach(btn=>{ btn.style.display='none'; btn.disabled=true; });
       }
     })();
 
-    // เริ่มต้น
     updateStepTagAndStepper();
 
     // Expose for HTML buttons
@@ -869,6 +882,7 @@
     window.openQr = openQr; window.openReceipt = openReceipt;
     window.openViewer = openViewer; window.closeViewer = closeViewer;
     window.viewerZoom = viewerZoom; window.viewerResetZoom = viewerResetZoom; window.viewerRotate = viewerRotate;
+  
   </script>
 </body>
 </html>

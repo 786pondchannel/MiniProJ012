@@ -183,9 +183,6 @@ public class OrderService {
         }
     }
 
-    /* ========================= ยืนยันชำระเงิน → อัปเดตสถานะอย่างเดียว =========================
-       (สต๊อกถูกตัดไปแล้วตอน checkout)
-    ======================================================================== */
     public void farmerVerifyPayment(String orderId, String farmerId) {
         try (Session s = HibernateConnection.getSessionFactory().openSession()) {
             Transaction tx = s.beginTransaction();
@@ -206,12 +203,7 @@ public class OrderService {
         }
     }
 
-    /* ========================= HARD DELETE โดยผู้ซื้อ =========================
-       ลบได้เฉพาะช่วงขั้น 1–2:
-       - orderStatus ∈ {SENT_TO_FARMER, FARMER_CONFIRMED}
-       - paymentStatus ∈ {AWAITING_BUYER_PAYMENT, PAID_PENDING_VERIFY}
-       (หมายเหตุ: ถ้าต้องการคืนสต๊อกเมื่อยกเลิกก่อนชำระเงิน ให้เพิ่ม logic คืนสต๊อกที่นี่)
-    ========================================================================== */
+  
     public DeleteResult hardDeleteByBuyer(String orderId, String memberId) {
         if (orderId == null || memberId == null) return DeleteResult.err("invalid");
 
@@ -297,39 +289,48 @@ public class OrderService {
         return Files.isRegularFile(p) ? p : null;
     }
 
-    public boolean cancelByBuyer(String orderId, String memberId) {
-        try (Session s = HibernateConnection.getSessionFactory().openSession()) {
-            Object[] row = (Object[]) s.createNativeQuery("""
-                SELECT orderStatus, paymentStatus, memberId
-                  FROM perorder
-                 WHERE orderId = :oid
-            """).setParameter("oid", orderId).uniqueResult();
+   public boolean cancelByBuyer(String orderId, String memberId) {
+    try (Session s = HibernateConnection.getSessionFactory().openSession()) {
+        Object[] row = (Object[]) s.createNativeQuery("""
+            SELECT orderStatus, paymentStatus, memberId
+              FROM perorder
+             WHERE orderId = :oid
+        """).setParameter("oid", orderId).uniqueResult();
 
-            if (row == null) return false;
-            if (!Objects.equals(memberId, row[2] == null ? null : row[2].toString())) return false;
+        if (row == null) return false;
+        if (!Objects.equals(memberId, row[2] == null ? null : row[2].toString())) return false;
 
-            String ost = row[0] == null ? "" : row[0].toString();
-            String pst = row[1] == null ? "" : row[1].toString();
+        String ost = row[0] == null ? "" : row[0].toString();
+        String pst = row[1] == null ? "" : row[1].toString();
 
-            boolean allowed = "SENT_TO_FARMER".equals(ost)
-                    || ("FARMER_CONFIRMED".equals(ost) && "AWAITING_BUYER_PAYMENT".equals(pst));
-            if (!allowed) return false;
+        boolean allowed =
+                "SENT_TO_FARMER".equalsIgnoreCase(ost)
+                || ("FARMER_CONFIRMED".equalsIgnoreCase(ost) && "AWAITING_BUYER_PAYMENT".equalsIgnoreCase(pst));
 
-            var tx = s.beginTransaction();
-            s.createNativeQuery("DELETE FROM receipt WHERE perorder_orderId = :oid")
-                    .setParameter("oid", orderId).executeUpdate();
-            s.createNativeQuery("DELETE FROM preorderdetail WHERE orderId = :oid")
-                    .setParameter("oid", orderId).executeUpdate();
-            int del = s.createNativeQuery("DELETE FROM perorder WHERE orderId = :oid AND memberId = :mid")
-                    .setParameter("oid", orderId)
-                    .setParameter("mid", memberId)
-                    .executeUpdate();
-            tx.commit();
-            return del > 0;
-        } catch (Exception e) {
-            return false;
-        }
+        if (!allowed) return false;
+
+        Transaction tx = s.beginTransaction();
+        int updated = s.createNativeQuery("""
+            UPDATE perorder
+               SET orderStatus = 'CANCELED'
+               , updatedAt = NOW()
+             WHERE orderId = :oid AND memberId = :mid
+               AND (
+                    orderStatus = 'SENT_TO_FARMER'
+                    OR (orderStatus = 'FARMER_CONFIRMED' AND paymentStatus = 'AWAITING_BUYER_PAYMENT')
+               )
+        """)
+        .setParameter("oid", orderId)
+        .setParameter("mid", memberId)
+        .executeUpdate();
+        tx.commit();
+
+        return updated > 0;
+    } catch (Exception e) {
+        return false;
     }
+}
+
 
     /* ===== DB metadata helpers ===== */
     private static boolean hasColumn(Connection conn, String tableName, String columnName) {

@@ -82,9 +82,27 @@
     .alert-red{ border:2px solid #ef4444; background:linear-gradient(180deg,#fff1f2,#ffffff); }
     .alert-title{ display:flex; align-items:center; gap:.5rem; font-weight:900; color:#991b1b }
     .alert-dot{ width:12px; height:12px; background:#ef4444; border-radius:9999px; box-shadow:0 0 0 6px rgba(239,68,68,.25) }
+
     @keyframes pulseBorder{ 0%{ box-shadow:0 0 0 0 rgba(239,68,68,.45) } 70%{ box-shadow:0 0 0 10px rgba(239,68,68,0) } 100%{ box-shadow:0 0 0 0 rgba(239,68,68,0) } }
     .row-alert{ animation:pulseBorder 1.6s ease-out infinite }
     .badge-danger{ background:#fee2e2; color:#991b1b }
+
+    /* ====== ✅ สถานะยกเลิก/ปฏิเสธ: กรอบแดง + กระพริบ ====== */
+    @keyframes blinkDanger {
+      0%, 100% { opacity: 1; filter: saturate(1); }
+      50% { opacity: .55; filter: saturate(1.6); }
+    }
+    @keyframes glowDanger {
+      0%   { box-shadow: 0 0 0 0 rgba(239,68,68,.55); }
+      70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+      100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+    }
+    .chip-cancel{
+      border:2px solid #ef4444 !important;
+      background:linear-gradient(180deg,#fff1f2,#ffffff) !important;
+      color:#991b1b !important;
+      animation: blinkDanger 0.9s steps(2,end) infinite, glowDanger 1.6s ease-out infinite;
+    }
 
     /* ซ่อนปุ่มยืนยันถ้าเคยกดแล้ว หรือเสร็จสิ้น */
     #tbody tr[data-buyerok="true"] button[onclick^="buyerConfirm"],
@@ -415,6 +433,19 @@
                 <c:set var="finished" value="false"/><c:catch><c:set var="finished" value="${r[7]}"/></c:catch>
                 <c:if test="${not finished}"><c:catch><c:set var="finished" value="${r.finished}"/></c:catch></c:if>
 
+                <!-- ✅ แปลสถานะเป็นไทย -->
+                <c:set var="ostThai"
+                  value="${
+                    ost eq 'SENT_TO_FARMER'     ? 'รอร้านยืนยันออเดอร์' :
+                    ost eq 'FARMER_CONFIRMED'   ? 'ร้านยืนยันแล้ว' :
+                    ost eq 'PREPARING_SHIPMENT' ? 'กำลังเตรียมจัดส่ง' :
+                    ost eq 'SHIPPED'            ? 'จัดส่งแล้ว' :
+                    ost eq 'COMPLETED'          ? 'เสร็จสิ้น' :
+                    ost eq 'REJECTED'           ? 'ร้านปฏิเสธ/ยกเลิก' :
+                    (ost eq 'CANCELED' || ost eq 'CANCELLED') ? 'ผู้ซื้อยกเลิก' :
+                                               'กำลังดำเนินการ'
+                  }"/>
+
                 <c:set var="orderCls"
                   value="${
                     ost eq 'SENT_TO_FARMER'      ? 'bg-sky-100 text-sky-800' :
@@ -423,9 +454,11 @@
                     ost eq 'SHIPPED'             ? 'bg-amber-100 text-amber-800' :
                     ost eq 'COMPLETED'           ? 'bg-gray-900 text-white' :
                     ost eq 'REJECTED'            ? 'bg-red-100 text-red-800' :
-                    ost eq 'CANCELED' || ost eq 'CANCELLED' ? 'bg-gray-200 text-gray-800' :
+                    ost eq 'CANCELED' || ost eq 'CANCELLED' ? 'bg-gray-200 text-gray-900' :
                                                              'bg-gray-100 text-gray-700'
                   }"/>
+
+                <c:set var="isCancelLike" value="${ost == 'REJECTED' or ost == 'CANCELED' or ost == 'CANCELLED'}"/>
 
                 <c:set var="canCancel" value="${ost == 'SENT_TO_FARMER' or (ost == 'FARMER_CONFIRMED' and pstat == 'AWAITING_BUYER_PAYMENT')}"/>
                 <c:set var="canUpload" value="${ost == 'FARMER_CONFIRMED' and pstat == 'AWAITING_BUYER_PAYMENT'}"/>
@@ -441,14 +474,18 @@
                 <c:set var="alreadyReviewed" value="${fn:contains(reviewedStr, needle)}"/>
 
                 <tr class="<c:out value='${st.index % 2 == 1 ? "bg-gray-50/45" : ""}'/> hover:bg-emerald-50/40 transition-colors
-                           <c:out value='${ost == "REJECTED" ? "row-alert ring-2 ring-red-400/60" : ""}'/>"
+                           <c:out value='${isCancelLike ? "row-alert ring-2 ring-red-400/60" : ""}'/>"
                     data-oid="${oid}" data-ost="${ost}" data-pstat="${pstat}" data-total="${total}"
                     data-date="${odate}" data-farmer="${fid}" data-buyerok="${buyerOk}" data-finished="${finished}">
                   <td class="py-4 px-3 font-mono text-slate-900 text-[13.8px] leading-5 break-all"><c:out value="${oid}"/></td>
                   <td class="py-4 px-3"><span class="chip bg-gray-100 text-gray-900"><c:out value="${odate}"/></span></td>
                   <td class="py-4 px-3"><span class="chip bg-gray-100 text-gray-900">฿<fmt:formatNumber value="${total}" type="number" maxFractionDigits="0"/></span></td>
+
+                  <!-- ✅ สถานะเป็นไทย + ถ้ายกเลิกให้กรอบแดงกระพริบ -->
                   <td class="py-4 px-3">
-                    <span class="chip ${orderCls}"><c:out value="${ost}"/></span>
+                    <span class="chip ${orderCls} ${isCancelLike ? 'chip-cancel' : ''}">
+                      <c:out value="${ostThai}"/>
+                    </span>
                   </td>
 
                   <!-- แจ้งเตือนด่วน (ฝังในหน้านี้เลย) -->
@@ -459,7 +496,7 @@
                         <div class="alert-title">
                           <span class="alert-dot"></span>
                           <span>ร้านยกเลิกคำสั่งซื้อ</span>
-                          <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs badge-danger">REJECTED</span>
+                          <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs badge-danger">ถูกปฏิเสธ</span>
                         </div>
                         <div id="alert-text-${oid}" class="mt-2 text-sm text-red-800 whitespace-pre-wrap">กำลังดึงเหตุผลจากร้าน…</div>
                         <div class="mt-2 text-xs text-red-700/80">
@@ -944,8 +981,9 @@
       let text='กำลังประมวลผล…', cls='bg-gray-100 text-gray-800';
       const postConfirm = ['FARMER_CONFIRMED','PREPARING_SHIPMENT','SHIPPED','COMPLETED'].includes(ost);
 
-      if (ost==='REJECTED'){ text='คำสั่งซื้อถูกปฏิเสธโดยร้าน'; cls='badge-danger'; }
-      else if (ost==='CANCELED' || ost==='CANCELLED'){ text='คำสั่งซื้อถูกยกเลิก'; cls='bg-gray-200 text-gray-900'; }
+      // ✅ ยกเลิก/ปฏิเสธ → กรอบแดงกระพริบ
+      if (ost==='REJECTED'){ text='คำสั่งซื้อถูกปฏิเสธโดยร้าน'; cls='chip-cancel'; }
+      else if (ost==='CANCELED' || ost==='CANCELLED'){ text='คำสั่งซื้อถูกยกเลิก'; cls='chip-cancel'; }
       else if (!postConfirm){ text='ตอนนี้: ขั้นที่ 1 • รอร้านยืนยัน'; cls='bg-sky-100 text-sky-800'; }
       else if (pst==='AWAITING_BUYER_PAYMENT'){ text='ตอนนี้: ขั้นที่ 2 • รอผู้ซื้อชำระ/อัปโหลดสลิป'; cls='bg-amber-100 text-amber-800'; }
       else if (pst==='PAID_PENDING_VERIFY' || pst==='PAID_PENDING_VERIFICATION'){ text='ตอนนี้: ขั้นที่ 3 • รอร้านตรวจสอบสลิป'; cls='bg-violet-100 text-violet-800'; }
@@ -967,7 +1005,7 @@
       const finished=(tr.dataset.finished||'false')==='true';
       const postConfirm = ['FARMER_CONFIRMED','PREPARING_SHIPMENT','SHIPPED','COMPLETED'].includes(ost);
 
-      if (ost==='REJECTED'){ return; }
+      if (ost==='REJECTED' || ost==='CANCELED' || ost==='CANCELLED'){ return; }
       if (!postConfirm){ s1.classList.add('now'); return; }
       s1.classList.add('done');
 
@@ -1064,8 +1102,6 @@
       body.innerHTML=''; body.appendChild(empty); empty.classList.remove('hidden');
       m.classList.remove('hidden');
       document.body.style.overflow='hidden';
-
-      // toggle ปุ่ม QR ในแชทตามสถานะ
       updateChatQRButton();
     }
     function closeChat(){ const m=document.getElementById('chatModal'); if(m){ m.classList.add('hidden'); document.body.style.overflow=''; } }
@@ -1084,7 +1120,6 @@
       document.getElementById('chatBody').scrollTop=document.getElementById('chatBody').scrollHeight;
     }
     function renderStatusCards(ost,pst){
-      // การ์ดสั้นๆ 2 กล่องเหมือนภาพตัวอย่าง
       const body=document.getElementById('chatBody');
       const make = (title,lines) => {
         const wrap=document.createElement('div'); wrap.className='flex justify-start';
@@ -1129,10 +1164,8 @@
       if (document.getElementById('chatModal').classList.contains('hidden')) openChat(oid);
       document.getElementById('chatHeaderOid').textContent = '#' + String(oid);
 
-      // ผู้ซื้อส่ง
       renderBubble({ senderRole:'BUYER', title:tFrom(action), message:mFrom(action) });
 
-      // ตอบอัตโนมัติแบบการ์ดให้เหมือนภาพ
       if (String(action).toUpperCase()==='ORDER_STATUS'){
         const tr = Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(oid));
         const ost=(tr?.dataset.ost || '-').toUpperCase(); const pst=(tr?.dataset.pstat || '-').toUpperCase();
@@ -1158,7 +1191,6 @@
         renderBubble({ senderRole:'FARMER', title:'ที่อยู่ฟาร์ม (ตัวอย่าง)', message:'123 หมู่ 4 ต.ตัวอย่าง อ.ตัวอย่าง จ.ตัวอย่าง 10110' });
       }
 
-      // fire-and-forget POST ไป server
       try{
         const body=new URLSearchParams({ action:String(action||'').toUpperCase() });
         const headers = {'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'};
@@ -1179,17 +1211,61 @@
     }
     window.openStoreContact = openStoreContact;
 
-    async function resolveQrUrl(orderId){
-      const d1=await fetchJSON(ctx + '/orders/' + encodeURIComponent(orderId) + '/payment-qr');
-      if (d1?.url && await probeImage(d1.url)) return d1.url;
-      const tr=Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(orderId));
-      const fid=tr?(tr.dataset.farmer||'').trim():'';
-      if(fid){
-        const d2=ctx + '/payment/qr/' + encodeURIComponent(fid);
-        if(await probeImage(d2)) return d2;
+    function withTs(u){
+      return u + (u.includes('?') ? '&' : '?') + 't=' + Date.now();
+    }
+
+    async function tryImageCandidates(candidates){
+      for(const raw of candidates){
+        const url = withTs(raw);
+        try{
+          const ok = await probeImage(url);
+          console.log('[QR] try', raw, '=>', ok);
+          if(ok) return url;
+        }catch(e){
+          console.log('[QR] error', raw, e);
+        }
       }
       return null;
     }
+
+    async function resolveQrUrl(orderId){
+      const oid = encodeURIComponent(orderId);
+
+      const directCandidates = [
+        ctx + '/orders/' + oid + '/qr',
+        ctx + '/orders/' + oid + '/payment-qr/image',
+        ctx + '/orders/' + oid + '/payment-qr.png',
+        ctx + '/orders/' + oid + '/qr.png',
+        ctx + '/orders/' + oid + '/qr-image',
+      ];
+      const direct = await tryImageCandidates(directCandidates);
+      if(direct) return direct;
+
+      const j = await fetchJSON(ctx + '/orders/' + oid + '/payment-qr');
+      if(j?.url){
+        const u = j.url.startsWith('http') ? j.url : (j.url.startsWith('/') ? (ctx + j.url) : (ctx + '/' + j.url));
+        const ok = await probeImage(u);
+        console.log('[QR] json url', j.url, '=>', ok);
+        if(ok) return withTs(u);
+      }
+
+      const tr = Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(orderId));
+      const fid = tr ? String(tr.dataset.farmer||'').trim() : '';
+      if(fid){
+        const farmerCandidates = [
+          ctx + '/payment/qr/' + encodeURIComponent(fid),
+          ctx + '/farmer/' + encodeURIComponent(fid) + '/qr',
+          ctx + '/farmers/' + encodeURIComponent(fid) + '/qr',
+          ctx + '/payment/qr?farmerId=' + encodeURIComponent(fid),
+        ];
+        const farmerQr = await tryImageCandidates(farmerCandidates);
+        if(farmerQr) return farmerQr;
+      }
+
+      return null;
+    }
+
     async function resolveReceiptUrl(orderId){
       const d=await fetchJSON(ctx + '/orders/' + encodeURIComponent(orderId) + '/receipt');
       if(d?.url && await probeImage(d.url)) return d.url + (d.url.includes('?')?'&':'?') + 't=' + Date.now();
@@ -1198,6 +1274,7 @@
       const fb3=ctx + '/payment/receipt/' + encodeURIComponent(orderId) + '?t=' + Date.now();
       return (await probeImage(fb3)) ? fb3 : null;
     }
+
     function openViewer(url,title){
       ZOOM=1; ROT=0; ORIGIN_X=0; ORIGIN_Y=0; applyTransform();
       const viewerModal=document.getElementById('viewerModal');
@@ -1218,8 +1295,21 @@
     function viewerResetZoom(){ ZOOM=1; ORIGIN_X=0; ORIGIN_Y=0; applyTransform(); }
     function viewerRotate(){ ROT=(ROT+90)%360; applyTransform(); }
     window.viewerZoom=viewerZoom; window.viewerResetZoom=viewerResetZoom; window.viewerRotate=viewerRotate;
-    window.openQr=async (orderId)=>{ const url=await resolveQrUrl(orderId); if(!url){ toast('ยังไม่พบ QR ของร้าน'); return; } openViewer(url,'ชำระเงินด้วย QR'); };
-    window.openReceipt=async (orderId)=>{ const url=await resolveReceiptUrl(orderId); if(!url){ toast('ยังไม่พบบันทึกสลิป'); return; } openViewer(url,'สลิปการชำระเงิน #'+orderId); };
+
+    window.openQr=async (orderId)=>{
+      const url=await resolveQrUrl(orderId);
+      if(!url){
+        toast('ยังไม่พบ QR ของร้าน (ตรวจ Network เพื่อดู URL ที่ 404)');
+        return;
+      }
+      openViewer(url,'ชำระเงินด้วย QR');
+    };
+
+    window.openReceipt=async (orderId)=>{
+      const url=await resolveReceiptUrl(orderId);
+      if(!url){ toast('ยังไม่พบบันทึกสลิป'); return; }
+      openViewer(url,'สลิปการชำระเงิน #'+orderId);
+    };
 
     /* ===== Celebrate: scene control (6s) ===== */
     const CELE_DUR_IN   = 2200;
@@ -1255,7 +1345,7 @@
       const {card,car}=celeRefs();
       if(!card) return;
       card.classList.remove('play','cele-enter-active');
-      void card.offsetWidth; // reflow
+      void card.offsetWidth;
       card.classList.add('play','cele-enter-active');
 
       if(car){
@@ -1290,21 +1380,17 @@
       const tr = Array.from(tbody.querySelectorAll('tr')).find(x=>x.dataset.oid===String(oid));
       if(!tr) return;
 
-      // ซ่อนปุ่มทันที (กดครั้งเดียว)
       const btn = tr.querySelector('[onclick^="buyerConfirm"]');
       if(btn){ btn.disabled = true; btn.style.display='none'; }
 
-      // 1) ดันสถานะในหน้า → ขั้น 5 + จำฝั่ง client
       tr.dataset.buyerok = 'true';
       tr.dataset.finished = 'false';
       localStorage.setItem('orders:buyerOk:'+oid,'1');
       localStorage.removeItem('orders:finished:'+oid);
       toggleRowUI(tr);
 
-      // 2) เล่นอนิเมชันฉากเต็ม
       openCelebrate();
 
-      // 3) ยิงบันทึกไป server (fire-and-forget)
       try{
         const headers = {'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'};
         if(CSRF_HEADER && CSRF_TOKEN) headers[CSRF_HEADER]=CSRF_TOKEN;
@@ -1313,7 +1399,6 @@
         }).catch(()=>{});
       }catch(_){}
 
-      // 4) Fallback: หลังจบอนิเมชัน → ขั้น 6
       setTimeout(()=>{
         tr.dataset.finished = 'true';
         localStorage.setItem('orders:finished:'+oid,'1');
@@ -1332,7 +1417,6 @@
     function closeCancel(){ const m=document.getElementById('cancelModal'); if(m){ m.classList.add('hidden'); document.body.style.overflow=''; } }
     window.openCancel=openCancel; window.closeCancel=closeCancel;
 
-    // init stepper display
     document.querySelectorAll('#tbody tr[data-oid]').forEach(toggleRowUI);
   </script>
 </body>

@@ -13,13 +13,13 @@ import java.sql.Date;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class FarmerOrdersService {
 
     private final SessionFactory sf = HibernateConnection.getSessionFactory();
 
-    // ===== Wire OrderService เพื่อตัดสต๊อก “กิโล” ตอนยืนยันชำระเงิน =====
     @Autowired
     private OrderService orderService;
 
@@ -175,7 +175,6 @@ public class FarmerOrdersService {
 
     // ====== Actions ======
 
-    /** ร้านกดยืนยันคำสั่งซื้อ → เปิดให้ลูกค้าชำระ */
     public boolean confirmOrder(String farmerId, String orderId) {
         try (Session s = sf.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -195,7 +194,6 @@ public class FarmerOrdersService {
         }
     }
 
-    /** ปฏิเสธคำสั่งซื้อ */
     public boolean rejectOrder(String farmerId, String orderId) {
         try (Session s = sf.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -217,23 +215,15 @@ public class FarmerOrdersService {
         }
     }
 
-    /** ปฏิเสธ (มีเหตุผล) — เก็บรูปแบบเดิมไว้ */
     public boolean rejectOrder(String farmerId, String orderId, String reason) {
         return rejectOrder(farmerId, orderId);
     }
 
-    /**
-     * ร้าน “ยืนยันรับชำระเงิน”
-     * เปลี่ยนมาเรียก OrderService.farmerVerifyPayment(orderId, farmerId)
-     * เพื่ออัปเดตสถานะ + ตัดสต๊อกเป็นกิโล (อ่านจาก preorderdetail.quantityKg หรือ fallback quantity)
-     */
     public boolean verifyPayment(String farmerId, String orderId) {
-        // ให้ OrderService จัดการทั้งหมดในทรานแซคชันเดียว (รวมตัดสต๊อกกิโล)
         orderService.farmerVerifyPayment(orderId, farmerId);
         return true;
     }
 
-    /** เริ่มเตรียมจัดส่ง */
     public boolean startPrepare(String farmerId, String orderId) {
         try (Session s = sf.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -254,7 +244,6 @@ public class FarmerOrdersService {
         }
     }
 
-    /** จัดส่งแล้ว (กำหนดวันที่จัดส่งได้) */
     public boolean markShipped(String farmerId, String orderId, String deliveryDate) {
         try (Session s = sf.openSession()) {
             if (deliveryDate == null || deliveryDate.isBlank()) {
@@ -281,7 +270,6 @@ public class FarmerOrdersService {
         }
     }
 
-    /** ปิดงาน (สำเร็จ) */
     public boolean complete(String farmerId, String orderId) {
         try (Session s = sf.openSession()) {
             Transaction tx = s.beginTransaction();
@@ -303,10 +291,10 @@ public class FarmerOrdersService {
         }
     }
 
-    /* ====== ลบออเดอร์ฝั่งร้าน (ตามกติกา) ====== */
+    // ====== ลบออเดอร์ฝั่งร้าน ======
     public static class DeleteResult {
         public final boolean ok;
-        public final String reasonCode;  // not_found / forbidden / not_allowed / error
+        public final String reasonCode;
         public final String reasonThai;
         public final int rowsDeleted;
         private DeleteResult(boolean ok, String code, String thai, int rows) {
@@ -316,12 +304,6 @@ public class FarmerOrdersService {
         public static DeleteResult err(String code, String thai) { return new DeleteResult(false, code, thai, 0); }
     }
 
-    /**
-     * ลบออเดอร์ฝั่งร้าน:
-     * - ต้องเป็นออเดอร์ของร้านนั้น
-     * - ห้ามลบเมื่อ paymentStatus ∈ {PAID_PENDING_VERIFY, PAID_CONFIRMED, REFUNDED}
-     * - ห้ามลบเมื่อ orderStatus ∈ {SHIPPED, COMPLETED}
-     */
     public DeleteResult deleteOrderByFarmer(String farmerId, String orderId) {
         if (farmerId == null || orderId == null) return DeleteResult.err("error", "ข้อมูลไม่ครบ");
 
@@ -426,5 +408,70 @@ public class FarmerOrdersService {
         public String getReceiptId() { return receiptId; }
         public String getReferenceId() { return referenceId; }
         public String getImg() { return img; }
+    }
+
+    /**
+     * ✅ ยกเลิกคำสั่งซื้อโดย "ร้าน"
+     * - ต้องเป็นออเดอร์ของร้านนั้น (เทียบ farmerId)
+     * - ยกเลิกได้เฉพาะ:
+     *   1) SENT_TO_FARMER
+     *   2) FARMER_CONFIRMED และ paymentStatus = AWAITING_BUYER_PAYMENT (ยังไม่จ่าย)
+     * - ทำเป็น "SOFT CANCEL" คือ UPDATE เป็น CANCELED (ไม่ลบทิ้ง)
+     */
+    public boolean cancelOrderByFarmer(String farmerId, String orderId) {
+        if (farmerId == null || orderId == null) return false;
+
+        try (Session s = sf.openSession()) {
+            Object[] row = (Object[]) s.createNativeQuery("""
+                SELECT orderStatus, paymentStatus, farmerId
+                  FROM perorder
+                 WHERE orderId = :oid
+            """)
+            .setParameter("oid", orderId)
+            .uniqueResult();
+
+            if (row == null) return false;
+
+            String ost   = row[0] == null ? "" : row[0].toString();
+            String pst   = row[1] == null ? "" : row[1].toString();
+            String owner = row[2] == null ? "" : row[2].toString();
+
+            // ✅ เจ้าของต้องเป็นร้านนี้ (เช็ค farmerId ไม่ใช่ memberId!)
+            if (!Objects.equals(farmerId, owner)) return false;
+
+            boolean allowed =
+                    ST_SENT_TO_FARMER.equalsIgnoreCase(ost)
+                    || (ST_FARMER_CONFIRMED.equalsIgnoreCase(ost) && PAY_AWAIT_BUYER.equalsIgnoreCase(pst));
+
+            if (!allowed) return false;
+
+            Transaction tx = s.beginTransaction();
+
+            // ✅ UPDATE แบบล็อกเงื่อนไขกันยิงซ้ำ/กันสถานะหลุด
+            int updated = s.createNativeQuery("""
+                UPDATE perorder
+                   SET orderStatus = :canceled
+                   -- ถ้ามีคอลัมน์ updatedAt ใช้บรรทัดนี้ได้ ไม่งั้นลบทิ้ง
+                   , updatedAt = NOW()
+                 WHERE orderId  = :oid
+                   AND farmerId = :fid
+                   AND (
+                        orderStatus = :s1
+                        OR (orderStatus = :s2 AND paymentStatus = :p2)
+                   )
+            """)
+            .setParameter("canceled", ST_CANCELED)
+            .setParameter("oid", orderId)
+            .setParameter("fid", farmerId)
+            .setParameter("s1", ST_SENT_TO_FARMER)
+            .setParameter("s2", ST_FARMER_CONFIRMED)
+            .setParameter("p2", PAY_AWAIT_BUYER)
+            .executeUpdate();
+
+            tx.commit();
+            return updated > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

@@ -1,10 +1,13 @@
- package com.springmvc.controller;
+package com.springmvc.controller;
 
 import com.springmvc.model.Member;
+import com.springmvc.model.Farmer;
 import com.springmvc.service.BuyerOrdersService;
 import com.springmvc.service.BuyerOrdersService.OrderDetail;
 import com.springmvc.service.BuyerOrdersService.OrderLine;
 import com.springmvc.service.BuyerOrdersService.ReceiptInfo;
+import com.springmvc.service.FarmerService;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +27,17 @@ public class OrdersController {
     @Autowired
     private BuyerOrdersService ordersService;
 
+    // ✅ เพิ่มอันนี้
+    @Autowired
+    private FarmerService farmerService;
+
     /** หน้า “รายละเอียดคำสั่งซื้อของฉัน” */
     @GetMapping("/{orderId}")
     public String viewDetail(@PathVariable String orderId,
                              HttpSession session,
                              HttpServletRequest req,
                              Model model) {
+
         Member current = (Member) session.getAttribute("loggedInUser");
         if (current == null) return "redirect:/login";
 
@@ -45,10 +53,9 @@ public class OrdersController {
             return "redirect:/orders";
         }
 
-        List<OrderLine> items     = ordersService.getLines(current.getMemberId(), orderId);
+        List<OrderLine> items      = ordersService.getLines(current.getMemberId(), orderId);
         List<ReceiptInfo> receipts = ordersService.getReceipts(current.getMemberId(), orderId);
 
-        // ใช้ค่าแบบ getter ทั้งหมด
         final String ost = od.getOrderStatus();
         final String pst = od.getPaymentStatus();
 
@@ -61,6 +68,23 @@ public class OrdersController {
 
         boolean showPayArea = "FARMER_CONFIRMED".equalsIgnoreCase(ost);
 
+        // =========================
+        // ✅ เพิ่มส่วนนี้: ส่ง QR/สลิปของร้านให้ JSP
+        // =========================
+        String farmerId = null;
+        try {
+            farmerId = od.getFarmerId(); // ต้องมีใน OrderDetail (ใน JSP คุณใช้ order.farmerId อยู่แล้ว)
+        } catch (Exception ignore) {}
+
+        Farmer farmer = null;
+        String paymentSlipUrl = null;
+        if (farmerId != null && !farmerId.isBlank()) {
+            farmer = farmerService.getFarmer(farmerId);
+            paymentSlipUrl = farmerService.getPaymentSlipUrlFromFarmer(farmer);
+        }
+
+        // =========================
+
         model.addAttribute("order", od);
         model.addAttribute("items", items);
         model.addAttribute("receipts", receipts);
@@ -70,9 +94,13 @@ public class OrdersController {
         model.addAttribute("showPayArea", showPayArea);
         model.addAttribute("ctx", req.getContextPath());
 
-        // ให้ตรงกับ ViewResolver ของคุณ เช่น /WEB-INF/jsp/OrderDetail.jsp
+        // ✅ สำคัญ: ให้ JSP ใช้ได้
+        model.addAttribute("farmer", farmer);
+        model.addAttribute("paymentSlipUrl", paymentSlipUrl);
+
         return "OrderDetail";
     }
+
     @GetMapping("/order/{productId}")
     public String startOrder(@PathVariable("productId") Long productId,
                              HttpSession session,
@@ -84,8 +112,6 @@ public class OrdersController {
             ra.addFlashAttribute("error", "กรุณาเข้าสู่ระบบก่อนทำรายการสั่งซื้อ");
             return "redirect:/login?next=" + URLEncoder.encode(next, StandardCharsets.UTF_8);
         }
-
-        // … โหลดสินค้า/ตรวจสต็อก/ไปหน้ากรอกที่อยู่จัดส่งต่อไป
         return "redirect:/checkout?productId=" + productId;
     }
 }

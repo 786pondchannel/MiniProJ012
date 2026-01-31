@@ -437,28 +437,26 @@ public class BuyerOrdersController {
     }
 
     /* ========================= ยกเลิกคำสั่งซื้อ =========================
-       - /{orderId}/cancel      : ฟอร์ม HTML -> redirect:/orders
-       - /{orderId}/cancel.json : AJAX/JSON
+     
     ===================================================================== */
 
-    @PostMapping(
-        value = "/{orderId}/cancel",
-        consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE
-    )
-    public String cancelOrderHtml(@PathVariable String orderId,
-                                  HttpSession session,
-                                  RedirectAttributes ra) {
-        Member current = (Member) session.getAttribute("loggedInUser");
-        if (current == null) return "redirect:/login";
+   @PostMapping(value = "/{orderId}/cancel", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+public String cancelOrderHtml(@PathVariable String orderId,
+                              HttpSession session,
+                              RedirectAttributes ra) {
+    Member current = (Member) session.getAttribute("loggedInUser");
+    if (current == null) return "redirect:/login";
 
-        boolean ok = orderService.cancelByBuyer(orderId, current.getMemberId());
-        if (ok) {
-            ra.addFlashAttribute("msg", "ยกเลิกและลบออเดอร์เรียบร้อย");
-        } else {
-            ra.addFlashAttribute("error", "ยกเลิกไม่ได้ในขั้นตอนนี้ หรือไม่ใช่เจ้าของออเดอร์");
-        }
-        return "redirect:/orders";
+    // คำสั่งให้ยกเลิกคำสั่งซื้อ
+    boolean ok = orderService.cancelByBuyer(orderId, current.getMemberId());
+    if (ok) {
+        ra.addFlashAttribute("msg", "ยกเลิกและลบออเดอร์เรียบร้อย");
+    } else {
+        ra.addFlashAttribute("error", "ยกเลิกไม่ได้ในขั้นตอนนี้ หรือไม่ใช่เจ้าของออเดอร์");
     }
+    return "redirect:/orders"; // เปลี่ยนเส้นทางไปหน้าออเดอร์
+}
+
 
     @PostMapping(
         value = "/{orderId}/cancel.json",

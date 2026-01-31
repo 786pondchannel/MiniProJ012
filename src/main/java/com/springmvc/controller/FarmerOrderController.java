@@ -1,4 +1,3 @@
-// src/main/java/com/springmvc/controller/FarmerOrderController.java
 package com.springmvc.controller;
 
 import com.springmvc.model.Member;
@@ -206,5 +205,41 @@ public class FarmerOrderController {
         return r.ok ? Map.of("ok", true)
                     : Map.of("ok", false, "reasonThai",
                              r.reasonThai == null ? "ลบไม่สำเร็จ" : r.reasonThai);
+    }
+
+    /* ===== ยกเลิกคำสั่งซื้อ (สำหรับร้าน) ===== */
+    // สำหรับกรณีที่ใช้งานแบบ HTML Form 
+   @PostMapping(value = "/{orderId}/cancel", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+public String cancelOrderHtml(@PathVariable String orderId,
+                              HttpSession session,
+                              RedirectAttributes ra) {
+    Member current = requireFarmer(session);
+    if (current == null) return "redirect:/login";
+
+    // คำสั่งให้ยกเลิกคำสั่งซื้อ
+    boolean ok = ordersService.cancelOrderByFarmer(current.getMemberId(), orderId);
+    if (ok) {
+        ra.addFlashAttribute("msg", "ยกเลิกคำสั่งซื้อเรียบร้อย");
+        return "redirect:/farmer/orders?unlockDelete=" + orderId; // คืนค่าหลังยกเลิกแล้ว
+    } else {
+        ra.addFlashAttribute("error", "ยกเลิกคำสั่งซื้อไม่สำเร็จ");
+        return "redirect:/farmer/orders/" + orderId; // กลับหน้าเดิมหากล้มเหลว
+    }
+}
+
+    // สำหรับกรณีที่ใช้ AJAX (ส่ง JSON)
+    @PostMapping(value = "/{orderId}/cancel.json", produces = "application/json; charset=UTF-8")
+    @ResponseBody
+    public Map<String, Object> cancelOrderJson(@PathVariable String orderId,
+                                               HttpSession session) {
+        Member cur = requireFarmer(session);
+        if (cur == null) {
+            return Map.of("ok", false, "reason", "unauthorized");
+        }
+
+        // เรียก service ยกเลิกคำสั่งซื้อ
+        boolean ok = ordersService.cancelOrderByFarmer(cur.getMemberId(), orderId);
+
+        return ok ? Map.of("ok", true) : Map.of("ok", false, "reason", "cannot_cancel");
     }
 }
