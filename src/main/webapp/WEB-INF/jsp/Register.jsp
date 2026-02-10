@@ -116,7 +116,7 @@
       if (address) {
         var ad = address.value.trim();
         if (!ad) { markInvalid(address,'กรุณากรอกที่อยู่'); errs.push('กรุณากรอกที่อยู่'); }
-        else if (ad.length < 5) { markInvalid(address,'ที่อยู่สั้นเกินไป'); errs.push('ที่อยู่สั้นเกินไป'); }
+        else if (ad.length < 5) { markInvalid(address,'ที่อยู่สั้นเกินไป อย่างน้อย 10 ตัวอักษร'); errs.push('ที่อยู่สั้นเกินไป  อย่างน้อย 10 ตัวอักษร '); }
       }
 
       // ที่ตั้งฟาร์ม (เฉพาะฟอร์มเกษตรกร)
