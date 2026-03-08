@@ -1,61 +1,56 @@
-﻿# MiniProJ012
 # 🌾 Community Agricultural Pre-Order Website
 
-A web application developed to connect **consumers** directly with **local farmers** through an online agricultural marketplace.
+A web application that connects **consumers and farmers directly** through an online agricultural marketplace.
 
-This platform allows users to search agricultural products, place pre-orders, and manage orders efficiently while helping farmers sell their products without intermediaries.
+This platform allows users to search products, place pre-orders, and manage orders efficiently while helping farmers sell their products without intermediaries.
 
 ---
 
 # 📌 Project Overview
 
-The **Community Agricultural Pre-Order Website** was developed to support local farmers by providing an online platform where consumers can access fresh agricultural products directly from producers.
+The **Community Agricultural Pre-Order Website** is an online platform designed to support local farmers and make it easier for consumers to access fresh agricultural products directly from producers.
 
-The system acts as a **digital marketplace** that connects consumers and farmers in a convenient and transparent way.
+The system acts as a **digital marketplace** where farmers can list their products and manage orders, while consumers can browse products, place pre-orders, and track their orders.
 
-Consumers can easily browse agricultural products, view farmer information, and place pre-orders. Farmers can list their products, manage orders, and update order status in real time.
-
-This platform not only facilitates online trading but also promotes **sustainable agriculture**, supports the **local economy**, and strengthens relationships between farmers and consumers.
+This platform promotes **sustainable agriculture**, strengthens local economies, and builds a direct connection between farmers and consumers.
 
 ---
 
 # 🎯 Project Objectives
 
-- Develop an online agricultural pre-order system
+- Develop a website for **agricultural product pre-ordering**
 - Allow consumers to purchase products **directly from farmers**
-- Support **local agricultural markets**
-- Promote **sustainable agriculture**
+- Support **local community agriculture**
+- Promote **sustainable agricultural practices**
 - Increase **market opportunities for farmers**
 
 ---
 
 # 👥 User Roles
 
-The system supports **3 main types of users**
+## General User
+Users who access the website without registration.
 
-### 1️⃣ General User
-Users who visit the website without registration.
-
-Capabilities:
-
+Features:
 - Search products
 - Search products by category
 - View product details
 - View farmer profile
-- Register as a member
-- Register as a farmer
+- Register as member
+- Register as farmer
 
 ---
 
-### 2️⃣ Member
-Registered users who can purchase products.
+## Member
 
-Capabilities:
+Registered users who can place orders.
 
-- Login to the system
+Features:
+
+- Login to system
 - Edit personal profile
 - Manage shopping cart
-- Pre-order agricultural products
+- Pre-order products
 - View preorder list
 - View preorder details
 - Upload payment receipt
@@ -65,13 +60,14 @@ Capabilities:
 
 ---
 
-### 3️⃣ Farmer
+## Farmer
+
 Farmers who sell products on the platform.
 
-Capabilities:
+Features:
 
-- Login to the system
-- Manage farmer profile
+- Login to system
+- Edit farmer profile
 - Upload payment QR / payment slip
 - Manage farm images
 - Create preorder products
@@ -88,24 +84,23 @@ Capabilities:
 
 # ⚙️ System Features
 
-### 🔎 Product Features
-- Search agricultural products
+### Product Features
+- Search products
 - Browse products by category
 - View product details
 - View farmer information
 
-### 🛒 Order Management
+### Order Management
 - Add products to cart
 - Pre-order products
-- View order details
-- Upload payment receipts
+- Upload payment receipt
 - Cancel orders
 - View order history
 
-### 🌱 Farmer Management
-- Create product listings
-- Manage farm information
+### Farmer Management
+- Manage farm profile
 - Manage farm images
+- Create and manage products
 - Confirm orders
 - Update order status
 - Set delivery dates
@@ -132,15 +127,40 @@ The system is developed using **MVC Architecture (Model-View-Controller)**.
 
 ---
 
-# 🧩 System Modeling
+# 🐳 Development Environment
 
-The system was analyzed and designed using:
+The project uses **Docker** to simplify the development environment.
 
-- Object-Oriented Analysis and Design (OOAD)
-- UML Diagrams
-  - Use Case Diagram
-  - Class Diagram
-  - Sequence Diagram
+Tools used:
+
+- Docker
+- Docker Compose
+- MySQL Database
+- phpMyAdmin (for database management)
+
+Docker helps run the application and database services consistently across different environments.
+
+---
+
+# 🎨 UI & Animation
+
+The user interface includes **modern UI animations** to improve user experience.
+
+Technologies used:
+
+- CSS Animation
+- JavaScript Animation
+- Scroll-based animation effects
+
+---
+
+# 🧩 System Design
+
+The system was designed using **Object-Oriented Analysis and Design (OOAD)** and **UML diagrams**, including:
+
+- Use Case Diagram
+- Class Diagram
+- Sequence Diagram
 
 ---
 
@@ -149,17 +169,9 @@ The system was analyzed and designed using:
 - IntelliJ IDEA / Eclipse
 - Apache Tomcat
 - MySQL
+- Docker
+- phpMyAdmin
 - Git & GitHub
-
----
-
-# 🌱 Key Benefits
-
-- Supports **local farmers**
-- Provides **direct farmer-to-consumer trade**
-- Encourages **sustainable agriculture**
-- Reduces dependency on **middlemen**
-- Helps build **community-based markets**
 
 ---
 
